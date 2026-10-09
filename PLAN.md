@@ -221,7 +221,6 @@ Estimates assume focused sessions with Cursor generating most boilerplate. Total
 - [ ] Create repo, add `PLAN.md` and `.cursor/rules/astawash.mdc`
 - [ ] `flutter create mobile`, add packages, bundle Noto Sans Ethiopic
 - [ ] Backend scaffold + `docker-compose.yml` with Postgres
-- [ ] Paste the starter prompt into Cursor
 **Done when:** app runs on a device, `docker compose up` gives a working DB.
 
 ### Session 1 — Core ledger, local only (≈ 4 h) ← biggest chunk, do this in one sitting
