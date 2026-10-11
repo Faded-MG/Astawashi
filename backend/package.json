@@ -6,13 +6,17 @@
   "scripts": {
     "test": "vitest run",
     "build": "tsc -p tsconfig.json",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "migrate": "node-pg-migrate up --migrations-dir src/db/migrations --database-url ${DATABASE_URL:-postgresql://astawash:astawash@localhost:5432/astawash}"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "module",
   "dependencies": {
+    "@fastify/jwt": "^10.2.5",
+    "@fastify/rate-limit": "^11.2.1",
+    "argon2": "^0.45.1",
     "fastify": "^5.12.7",
     "pg": "^8.23.1",
     "zod": "^4.6.7"
@@ -20,6 +24,7 @@
   "devDependencies": {
     "@types/node": "^26.6.5",
     "@types/pg": "^8.23.1",
+    "node-pg-migrate": "^9.0.0",
     "typescript": "^7.0.2",
     "vitest": "^4.1.12"
   }
