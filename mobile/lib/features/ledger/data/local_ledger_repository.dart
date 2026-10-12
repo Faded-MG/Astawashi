@@ -65,17 +65,42 @@ final class LocalLedgerRepository {
         .watch();
   }
 
-  /// Returns the balance derived from the customer's ledger deltas.
+  /// Returns the active balance derived from the customer's ledger deltas.
   Future<int> getOutstandingBalance(String customerId) async {
-    final row = await _balanceStatement(customerId).getSingle();
+    final row = await _balanceStatement(customerId).getSingleOrNull();
+    if (row == null) {
+      return 0;
+    }
     return row.read<int>('balance_santim');
   }
 
+  /// Alias for [getOutstandingBalance].
+  Future<int> getBalance(String customerId) => getOutstandingBalance(customerId);
+
   /// Watches the balance derived from the customer's ledger deltas.
   Stream<int> watchOutstandingBalance(String customerId) {
-    return _balanceStatement(
-      customerId,
-    ).watchSingle().map((row) => row.read<int>('balance_santim'));
+    return _balanceStatement(customerId).watchSingleOrNull().map(
+      (row) => row?.read<int>('balance_santim') ?? 0,
+    );
+  }
+
+  /// Alias for [watchOutstandingBalance].
+  Stream<int> watchBalance(String customerId) => watchOutstandingBalance(customerId);
+
+  /// Returns the summed outstanding balance for all active customers in this shop.
+  Future<int> getTotalOutstanding() async {
+    final row = await _totalOutstandingStatement().getSingleOrNull();
+    if (row == null) {
+      return 0;
+    }
+    return row.read<int>('total_outstanding_santim');
+  }
+
+  /// Watches the summed outstanding balance for all active customers in this shop.
+  Stream<int> watchTotalOutstanding() {
+    return _totalOutstandingStatement().watchSingleOrNull().map(
+      (row) => row?.read<int>('total_outstanding_santim') ?? 0,
+    );
   }
 
   /// Adds a credit sale and returns its immutable ledger entry.
@@ -226,10 +251,23 @@ final class LocalLedgerRepository {
 
   Selectable<QueryRow> _balanceStatement(String customerId) {
     return _database.customSelect(
-      'SELECT COALESCE(SUM(delta_santim), 0) AS balance_santim '
-      'FROM ledger_entries WHERE shop_id = ? AND customer_id = ?',
+      'SELECT COALESCE(SUM(l.delta_santim), 0) AS balance_santim '
+      'FROM ledger_entries AS l '
+      'INNER JOIN customers AS c ON c.id = l.customer_id AND c.shop_id = l.shop_id '
+      'WHERE l.shop_id = ? AND l.customer_id = ? AND c.deleted_at IS NULL',
       variables: [Variable<String>(shopId), Variable<String>(customerId)],
-      readsFrom: {_database.ledgerEntries},
+      readsFrom: {_database.ledgerEntries, _database.customers},
+    );
+  }
+
+  Selectable<QueryRow> _totalOutstandingStatement() {
+    return _database.customSelect(
+      'SELECT COALESCE(SUM(l.delta_santim), 0) AS total_outstanding_santim '
+      'FROM ledger_entries AS l '
+      'INNER JOIN customers AS c ON c.id = l.customer_id AND c.shop_id = l.shop_id '
+      'WHERE l.shop_id = ? AND c.deleted_at IS NULL',
+      variables: [Variable<String>(shopId)],
+      readsFrom: {_database.ledgerEntries, _database.customers},
     );
   }
 
