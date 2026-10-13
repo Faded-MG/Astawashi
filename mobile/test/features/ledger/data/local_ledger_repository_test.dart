@@ -1,5 +1,6 @@
 import 'package:astawash/core/db/app_database.dart';
 import 'package:astawash/features/ledger/data/local_ledger_repository.dart';
+import 'package:drift/drift.dart' hide isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -130,6 +131,32 @@ void main() {
 
       expect(balanceEvents, containsAllInOrder([0, 2000]));
       expect(historyLengths, containsAllInOrder([0, 1]));
+    });
+
+    test('aggregates total outstanding across active customers and excludes soft-deleted ones', () async {
+      final first = await addCustomer('Abebe Kebede');
+      final second = await addCustomer('Chaltu Bekele');
+
+      await repository.addCredit(customerId: first.id, amountSantim: 2500);
+      await repository.addPayment(customerId: first.id, amountSantim: 1000);
+      await repository.addCredit(customerId: second.id, amountSantim: 1200);
+
+      expect(await repository.getTotalOutstanding(), 2700);
+      expect(await repository.getBalance(first.id), 1500);
+      expect(await repository.watchTotalOutstanding().first, 2700);
+      expect(await repository.watchBalance(first.id).first, 1500);
+
+      await (database.update(
+        database.customers,
+      )..where((customer) => customer.id.equals(second.id))).write(
+        CustomersCompanion(
+          deletedAt: Value(fixedTime.add(const Duration(minutes: 5))),
+          updatedAt: Value(fixedTime.add(const Duration(minutes: 5))),
+        ),
+      );
+
+      expect(await repository.getTotalOutstanding(), 1500);
+      expect(await repository.watchTotalOutstanding().first, 1500);
     });
 
     test(
