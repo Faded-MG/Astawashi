@@ -14,8 +14,8 @@ export const syncEntrySchema = z.object({
   id: z.string().uuid(),
   customerId: z.string().uuid(),
   kind: z.enum(['credit', 'payment', 'reversal']),
-  amountSantim: z.coerce.number().int(),
-  deltaSantim: z.coerce.number().int(),
+  amountSantim: z.number().int().min(-2_147_483_648).max(2_147_483_647),
+  deltaSantim: z.number().int().min(-2_147_483_648).max(2_147_483_647),
   reversesId: z.string().uuid().nullable().optional(),
   note: z.string().trim().max(500).nullable().optional(),
   occurredAt: z.string().datetime({ offset: true }),
@@ -27,10 +27,17 @@ export const syncPushRequestSchema = z.object({
   deviceId: z.string().trim().min(1).max(120).optional(),
   customers: z.array(syncCustomerSchema).max(200).default([]),
   entries: z.array(syncEntrySchema).max(200).default([]),
+}).superRefine((payload, context) => {
+  if (payload.customers.length + payload.entries.length > 200) {
+    context.addIssue({
+      code: 'custom',
+      message: 'A sync batch may contain at most 200 changes.',
+    });
+  }
 });
 
 export const syncPullQuerySchema = z.object({
-  since: z.coerce.number().int().nonnegative().default(0),
+  since: z.coerce.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER).default(0),
   limit: z.coerce.number().int().min(1).max(200).default(50),
 });
 
@@ -78,6 +85,9 @@ export interface SyncPullPage {
 }
 
 export interface SyncRepository {
+  withTransaction<T>(
+    operation: (repository: SyncRepository) => Promise<T>,
+  ): Promise<T>;
   upsertCustomer(customer: {
     id: string;
     shopId: string;
@@ -103,8 +113,10 @@ export interface SyncRepository {
   }): Promise<boolean>;
   pullPage(shopId: string, since: number, limit: number): Promise<SyncPullPage>;
   customerExistsForShop(shopId: string, customerId: string): Promise<boolean>;
+  getEntryById(entryId: string): Promise<SyncEntryRow | null>;
   getEntryByIdForShop(shopId: string, entryId: string): Promise<SyncEntryRow | null>;
   getReversalForEntry(shopId: string, entryId: string): Promise<SyncEntryRow | null>;
+  getCustomerById(customerId: string): Promise<SyncCustomerRow | null>;
   getCustomerByIdForShop(shopId: string, customerId: string): Promise<SyncCustomerRow | null>;
 }
 
@@ -116,11 +128,15 @@ export class SyncService {
     raw: z.infer<typeof syncPushRequestSchema>,
   ): Promise<SyncPushResult> {
     const payload = syncPushRequestSchema.parse(raw);
-    const totalChanges = payload.customers.length + payload.entries.length;
-    if (totalChanges > 200) {
-      throw new Error('A sync batch may contain at most 200 changes.');
-    }
+    return this.repository.withTransaction((repository) =>
+      new SyncService(repository).pushInTransaction(shopId, payload),
+    );
+  }
 
+  private async pushInTransaction(
+    shopId: string,
+    payload: z.infer<typeof syncPushRequestSchema>,
+  ): Promise<SyncPushResult> {
     const acceptedCustomerIds: string[] = [];
     const acceptedEntryIds: string[] = [];
     const alreadyAcceptedCustomerIds: string[] = [];
@@ -129,7 +145,7 @@ export class SyncService {
     const rejectedEntries: Array<{ id: string; reason: string }> = [];
 
     for (const customer of payload.customers) {
-      const existing = await this.repository.getCustomerByIdForShop(shopId, customer.id);
+      const existing = await this.repository.getCustomerById(customer.id);
       if (existing && existing.shopId !== shopId) {
         rejectedCustomers.push({ id: customer.id, reason: 'Customer belongs to another shop.' });
         continue;
@@ -194,6 +210,14 @@ export class SyncService {
       }
 
       const existing = await this.repository.getEntryByIdForShop(shopId, entry.id);
+      const existingAcrossShops = existing ?? await this.repository.getEntryById(entry.id);
+      if (existingAcrossShops && existingAcrossShops.shopId !== shopId) {
+        rejectedEntries.push({
+          id: entry.id,
+          reason: 'Ledger entry UUID already exists with conflicting immutable content.',
+        });
+        continue;
+      }
       const normalized = {
         id: entry.id,
         shopId,
@@ -208,17 +232,17 @@ export class SyncService {
         deviceId: entry.deviceId,
       };
 
-      if (existing) {
+      if (existingAcrossShops) {
         const samePayload =
-          existing.customerId === normalized.customerId &&
-          existing.kind === normalized.kind &&
-          existing.amountSantim === normalized.amountSantim &&
-          existing.deltaSantim === normalized.deltaSantim &&
-          (existing.reversesId ?? null) === normalized.reversesId &&
-          (existing.note ?? null) === normalized.note &&
-          existing.occurredAt === normalized.occurredAt &&
-          existing.createdAt === normalized.createdAt &&
-          existing.deviceId === normalized.deviceId;
+          existingAcrossShops.customerId === normalized.customerId &&
+          existingAcrossShops.kind === normalized.kind &&
+          existingAcrossShops.amountSantim === normalized.amountSantim &&
+          existingAcrossShops.deltaSantim === normalized.deltaSantim &&
+          (existingAcrossShops.reversesId ?? null) === normalized.reversesId &&
+          (existingAcrossShops.note ?? null) === normalized.note &&
+          existingAcrossShops.occurredAt === normalized.occurredAt &&
+          existingAcrossShops.createdAt === normalized.createdAt &&
+          existingAcrossShops.deviceId === normalized.deviceId;
 
         if (samePayload) {
           alreadyAcceptedEntryIds.push(entry.id);
@@ -232,7 +256,7 @@ export class SyncService {
         continue;
       }
 
-      const validation = await this.validateEntryAgainstShopRules(shopId, entry, existing);
+      const validation = await this.validateEntryAgainstShopRules(shopId, entry, existingAcrossShops);
       if (!validation.valid) {
         rejectedEntries.push({ id: entry.id, reason: validation.reason ?? 'Invalid entry.' });
         continue;
@@ -293,6 +317,10 @@ export class SyncService {
 
       if (target.kind === 'reversal') {
         return { valid: false, reason: 'Reversal entries cannot reverse another reversal.' };
+      }
+
+      if (target.customerId !== entry.customerId) {
+        return { valid: false, reason: 'Reversal customer must match the original entry customer.' };
       }
 
       const reversalAlreadyExists = await this.repository.getReversalForEntry(shopId, entry.reversesId);
