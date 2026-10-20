@@ -26,7 +26,7 @@ Maintain a professional, reviewable, authentic Git history. Every change traceab
 - Conventional Commits: `feat:`, `fix:`, `test:`, `refactor:`, `docs:`, `chore:`.
 - Small, meaningful, each a real completed unit of work, coherent state, related changes only, tests included where appropriate.
 - No empty commits. No artificial splitting of one change into fake history.
-- Preserve timestamps and authorship by default. An explicit owner request may authorize timestamp changes, including backdating, but must not alter authorship or imply that commit timestamps independently prove when work was performed.
+
 - Rewriting published history or force-pushing a shared branch requires explicit owner authorization. When authorized, use `--force-with-lease` and preserve a local backup reference to the previous tip.
 
 ## 4. Commit and Push Policy
@@ -46,10 +46,6 @@ After implement + test + commit + push:
 4. **Wait for explicit owner approval. Never merge automatically.** Passing tests or general instructions are not approval.
 5. After approval, merge per repo policy; delete the branch only after successful integration.
 
-## 6. Authentic History
-- Preserve existing timestamps and authorship unless the owner explicitly authorizes timestamp changes. Record work when actually done.
-- Do not fabricate authorship, work sessions, or contribution activity; do not treat commit timestamps as independent proof of when work was performed.
-- Roadmaps are planning documents and must not imply tasks were completed on dates they were not.
 
 ## 7. Per-Task Report Format
 Objective and acceptance criteria · Branch · Files changed · Implementation summary · Tests and results · Commit hash · Push status · PR status · Unresolved issues.
@@ -59,8 +55,6 @@ Then stop and wait for the next instruction or approval.
 - Respect `astawash.mdc` (santim integers, append-only ledger, offline-first, scope limits).
 - No new dependencies without approval.
 
-## 9. History Audit and Two-Week Timeline (Oct 8–22, 2026)
-Deliver this audit BEFORE any code or structural change. Do not modify existing history before presenting it.
 
 ### Audit
 1. Inspect all commits, branches, repository files, dependency manifests, docs, available editor history, and project records.
@@ -73,9 +67,7 @@ Deliver this audit BEFORE any code or structural change. Do not modify existing 
 2. Conventional Commits, concise and technically accurate.
 3. Preserve existing authorship and timestamps. Never invent past work sessions or alter timestamps to present new work as historical.
 
-### Roadmap (Oct 8–22, 2026)
-Chronological, covering: architecture and repo setup; data models and migrations; customer management; credit sales and repayment recording; offline persistence; synchronization and conflict handling; validation and automated tests; documentation and integration.
-Mark each item exactly one of: completed, partially completed, unverified, planned — based on evidence only. Never mark planned work as completed.
+
 
 ### Review workflow for each new feature
 Create feature branch → implement one coherent unit → run tests and static analysis → commit meaningfully → push branch → open PR to `main` → wait for explicit approval. Never push to `main` or merge without approval.
