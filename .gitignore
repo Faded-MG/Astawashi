@@ -1,0 +1,9 @@
+
+# Local environment secrets
+.env
+.env.*
+!.env.example
+.DS_Store
+.vscode/
+.DS_Store
+.vscode/
