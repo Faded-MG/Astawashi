@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: astawash-postgres
+    environment:
+      POSTGRES_USER: astawash
+      POSTGRES_PASSWORD: astawash
+      POSTGRES_DB: astawash
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U astawash -d astawash"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_data:
