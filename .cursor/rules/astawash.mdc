@@ -1,0 +1,56 @@
+---
+alwaysApply: true
+---
+# Astawash — Project Rules
+
+Offline-first mobile credit ledger for Ethiopian neighborhood shops.
+Monorepo: `mobile/` (Flutter), `backend/` (Node.js + TypeScript + PostgreSQL). Architecture and data model live in `PLAN.md`. Read it before any structural change.
+
+## Working Style
+- Do one step at a time. Finish it, run it, then stop. Do not start the next step unprompted.
+- Output complete files, never partial diffs or "rest unchanged" placeholders.
+- Be terse. No filler, no recaps of what the code does unless asked.
+- Ask before adding a dependency not listed in `PLAN.md`.
+- Never change scope: no inventory, payments, lending, credit scoring, accounting.
+
+## Non-Negotiable Domain Rules
+1. **Money is integer santim.** Never use `double`/`float`/`number` decimals for money. Convert to birr only in UI formatting.
+2. **Ledger is append-only.** Never UPDATE or DELETE `ledger_entries`, locally or on the server. Corrections are `reversal` entries with `reverses_id`.
+3. **Balance is derived**: `SUM(delta_santim)` per customer. Never store a mutable balance column.
+4. **Delta signs:** credit `+amount`, payment `-amount`, reversal `-(original delta)`. A given entry can be reversed once; reversals cannot be reversed.
+5. **IDs are client-generated UUIDv7** and double as idempotency keys. Server inserts use `ON CONFLICT (id) DO NOTHING`.
+6. **Local SQLite is the source of truth.** UI reads/writes only local data. Network code lives only in `core/sync` and API clients, never in widgets.
+7. **Sync order:** push customers before entries, in one server transaction. Mark rows `synced_at` only after server confirmation.
+8. **Pull uses `server_seq` cursor**, never device timestamps.
+9. Customers: last-write-wins on `updated_at`, soft delete via `deleted_at`.
+
+## Flutter (mobile/)
+- Feature-first structure: `lib/features/<feature>/{data,domain,presentation}`; shared code in `lib/core/`.
+- State: Riverpod. Routing: go_router. DB: drift. HTTP: dio.
+- Widgets contain no business logic or SQL. Logic goes in controllers/repositories.
+- All user-facing strings come from ARB files (`app_en.arb`, `app_am.arb`). No hardcoded strings in widgets.
+- Support Amharic text: bundled Noto Sans Ethiopic, no runtime font downloads. Avoid fixed-width layouts that break on longer Amharic strings.
+- Repositories expose `Stream`s (drift `watch`) for lists and balances.
+- Handle loading, empty, and error states on every screen.
+- Large touch targets, minimal taps to record a sale (target: under 10 seconds).
+- Tokens only in `flutter_secure_storage`. Never log tokens, PINs, or phone numbers.
+
+## Backend (backend/)
+- Fastify + TypeScript strict mode. Validate every request body/query with zod.
+- Plain SQL via `pg` with migrations in `src/db/migrations`. No ORM.
+- Layering: route → service → SQL. No SQL in route handlers.
+- Every sync route runs in a single DB transaction.
+- Server validates: shop ownership from the JWT (never trust `shop_id` from body), `amount_santim > 0`, delta matches kind, customer exists.
+- Auth: phone + PIN, Argon2 hash, JWT access (short) + refresh (long), rate-limit login.
+- Never return stack traces to clients. Consistent error shape `{ error: { code, message } }`.
+
+## Testing
+- Ledger/balance logic requires unit tests before UI: credit, partial payment, reversal, double-reversal blocked, balance equals sum.
+- Backend sync requires tests: duplicate push (idempotent), partial batch, cross-shop rejection, pull pagination.
+- Any bug fix in money or sync code ships with a regression test.
+
+## Naming and Style
+- Dart: `lowerCamelCase` members, `UpperCamelCase` types, files `snake_case.dart`.
+- TypeScript: `camelCase` code, `snake_case` SQL columns, map at the data boundary.
+- Keep functions small and named for intent (`recordRepayment`, not `handleSubmit2`).
+- Comments explain why, not what.
