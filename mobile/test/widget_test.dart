@@ -6,6 +6,7 @@
 // tree, read text, and verify that the values of widget properties are correct.
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:astawash/main.dart';
@@ -26,5 +27,25 @@ void main() {
     // Verify that our counter has incremented.
     expect(find.text('0'), findsNothing);
     expect(find.text('1'), findsOneWidget);
+  });
+
+  testWidgets('app supports English and Amharic with bundled Ethiopic font', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const MyApp());
+
+    final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
+    final languageCodes = app.supportedLocales
+        .map((locale) => locale.languageCode)
+        .toSet();
+
+    expect(languageCodes, containsAll(['en', 'am']));
+    expect(app.theme?.textTheme.bodyMedium?.fontFamily, 'NotoSansEthiopic');
+    expect(
+      (await rootBundle.load(
+        'assets/fonts/NotoSansEthiopic.ttf',
+      )).lengthInBytes,
+      greaterThan(0),
+    );
   });
 }
