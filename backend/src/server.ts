@@ -137,6 +137,8 @@ export function buildServer(options: BuildServerOptions = {}) {
     });
   });
 
+  // Sync enforcement is JWT-derived: the server trusts the authenticated shop ID,
+  // never a client-supplied shop identifier.
   app.post('/sync/push', async (request, reply) => {
     const claims = await verifyAccessToken(request);
     const payload = syncPushRequestSchema.parse(request.body);
