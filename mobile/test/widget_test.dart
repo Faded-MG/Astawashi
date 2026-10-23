@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:astawash/app/providers/app_providers.dart';
+import 'package:astawash/app/router/app_router.dart';
 import 'package:astawash/core/db/app_database.dart';
 import 'package:astawash/core/sync/backend_api_client.dart';
 import 'package:astawash/core/sync/sync_models.dart';
@@ -9,6 +11,7 @@ import 'package:dio/dio.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -17,10 +20,12 @@ void main() {
   testWidgets('signs in and manually triggers sync from the app', (
     WidgetTester tester,
   ) async {
+    final router = createAppRouter(initialLocation: '/signin');
     final database = AppDatabase(NativeDatabase.memory());
+    final tokenStore = _MemoryTokenStore();
     final apiClient = BackendApiClient(
       baseUrl: 'https://api.example.test',
-      tokenStore: _MemoryTokenStore(),
+      tokenStore: tokenStore,
       dio: Dio(BaseOptions(baseUrl: 'https://api.example.test'))
         ..httpClientAdapter = _Adapter((request) async {
           if (request.path == '/auth/login') {
@@ -54,34 +59,119 @@ void main() {
         }),
     );
 
-    await tester.pumpWidget(MyApp(database: database, apiClient: apiClient));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(database),
+          backendApiClientProvider.overrideWithValue(apiClient),
+          shopIdProvider.overrideWith(
+            () => ShopIdNotifier(initialShopId: offlineOnlyShopId),
+          ),
+        ],
+        child: MyApp(router: router),
+      ),
+    );
+    await tester.pump();
     expect(
       find.text(
-        'Your local ledger stays available without internet. Sign in when you are online to synchronize.',
+        'Without signing in, records stay in a separate local-only shop and will not sync after you sign in.',
       ),
       findsOneWidget,
     );
 
-    await tester.tap(find.text('Sign in'));
-    await tester.pumpAndSettle();
-    expect(find.text('Synchronize now'), findsOneWidget);
+    await tester.enterText(find.byType(TextFormField).at(0), '0911223344');
+    await tester.enterText(find.byType(TextFormField).at(1), '1234');
+    await tester.tap(find.text('Sign In'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect((await tokenStore.read())?.shopId, shopId);
+    expect(router.routeInformationProvider.value.uri.path, '/dashboard');
 
-    await tester.tap(find.text('Synchronize now'));
-    await tester.pumpAndSettle();
-    expect(find.text('Synchronization complete'), findsOneWidget);
+    final savedScope = await (database.select(
+      database.syncState,
+    )..where((row) => row.id.equals(1))).getSingle();
+    expect(savedScope.activeShopId, shopId);
 
     await tester.pumpWidget(const SizedBox.shrink());
+    router.dispose();
+    await tester.pump(const Duration(seconds: 1));
+    await database.close();
   });
 
-  testWidgets('app supports English and Amharic with bundled Ethiopic font', (
+  testWidgets('manual sync action uses the authenticated backend client', (
     WidgetTester tester,
   ) async {
     final database = AppDatabase(NativeDatabase.memory());
-    final apiClient = BackendApiClient(
+    final tokenStore = _MemoryTokenStore()
+      ..tokens = const SessionTokens(
+        accessToken: 'access',
+        refreshToken: 'refresh',
+        shopId: shopId,
+      );
+    final apiClient = await BackendApiClient.restore(
       baseUrl: 'https://api.example.test',
-      tokenStore: _MemoryTokenStore(),
+      tokenStore: tokenStore,
+      dio: Dio(BaseOptions(baseUrl: 'https://api.example.test'))
+        ..httpClientAdapter = _Adapter((request) async {
+          if (request.path == '/sync/push') {
+            return _jsonResponse(200, {
+              'acceptedCustomerIds': [],
+              'acceptedEntryIds': [],
+              'alreadyAcceptedCustomerIds': [],
+              'alreadyAcceptedEntryIds': [],
+              'rejectedCustomers': [],
+              'rejectedEntries': [],
+            });
+          }
+          if (request.path == '/sync/pull') {
+            return _jsonResponse(200, {
+              'customers': [],
+              'entries': [],
+              'hasMore': false,
+              'nextCursor': null,
+            });
+          }
+          return _jsonResponse(404, {
+            'error': {'code': 'not_found', 'message': 'Not found.'},
+          });
+        }),
     );
-    await tester.pumpWidget(MyApp(database: database, apiClient: apiClient));
+    final router = createAppRouter(initialLocation: '/more');
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(database),
+          backendApiClientProvider.overrideWithValue(apiClient),
+          shopIdProvider.overrideWith(
+            () => ShopIdNotifier(initialShopId: shopId),
+          ),
+        ],
+        child: MyApp(router: router),
+      ),
+    );
+    await tester.pump();
+    await tester.tap(find.text('Sync Now'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('Sync completed successfully'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    router.dispose();
+    await tester.pump(const Duration(seconds: 1));
+    await database.close();
+  });
+
+  testWidgets('app renders splash branding and localization configuration', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      const ProviderScope(child: MyApp(initialLocation: '/splash')),
+    );
+    await tester.pump();
+
+    expect(find.text('Astawash'), findsOneWidget);
+    expect(find.text('Keep track. Grow together.'), findsOneWidget);
 
     final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
     final languageCodes = app.supportedLocales
@@ -101,16 +191,16 @@ void main() {
 }
 
 class _MemoryTokenStore implements TokenStore {
-  SessionTokens? _tokens;
+  SessionTokens? tokens;
 
   @override
-  Future<void> clear() async => _tokens = null;
+  Future<void> clear() async => tokens = null;
 
   @override
-  Future<SessionTokens?> read() async => _tokens;
+  Future<SessionTokens?> read() async => tokens;
 
   @override
-  Future<void> save(SessionTokens tokens) async => _tokens = tokens;
+  Future<void> save(SessionTokens value) async => tokens = value;
 }
 
 class _Adapter implements HttpClientAdapter {

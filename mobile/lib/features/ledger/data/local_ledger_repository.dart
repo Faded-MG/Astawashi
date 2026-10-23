@@ -65,6 +65,44 @@ final class LocalLedgerRepository {
         .watch();
   }
 
+  /// Updates an active customer belonging to this shop.
+  Future<void> updateCustomer({
+    required String customerId,
+    required String name,
+    String? phone,
+    String? note,
+  }) async {
+    final now = _now();
+    await (_database.update(_database.customers)..where(
+          (customer) =>
+              customer.id.equals(customerId) &
+              customer.shopId.equals(shopId) &
+              customer.deletedAt.isNull(),
+        ))
+        .write(
+          CustomersCompanion(
+            name: Value(name),
+            phone: Value(phone),
+            note: Value(note),
+            updatedAt: Value(now),
+          ),
+        );
+  }
+
+  /// Soft deletes a customer belonging to this shop.
+  Future<void> softDeleteCustomer(String customerId) async {
+    final now = _now();
+    await (_database.update(_database.customers)..where(
+          (customer) =>
+              customer.id.equals(customerId) &
+              customer.shopId.equals(shopId) &
+              customer.deletedAt.isNull(),
+        ))
+        .write(
+          CustomersCompanion(deletedAt: Value(now), updatedAt: Value(now)),
+        );
+  }
+
   /// Returns the active balance derived from the customer's ledger deltas.
   Future<int> getOutstandingBalance(String customerId) async {
     final row = await _balanceStatement(customerId).getSingleOrNull();
@@ -75,17 +113,19 @@ final class LocalLedgerRepository {
   }
 
   /// Alias for [getOutstandingBalance].
-  Future<int> getBalance(String customerId) => getOutstandingBalance(customerId);
+  Future<int> getBalance(String customerId) =>
+      getOutstandingBalance(customerId);
 
   /// Watches the balance derived from the customer's ledger deltas.
   Stream<int> watchOutstandingBalance(String customerId) {
-    return _balanceStatement(customerId).watchSingleOrNull().map(
-      (row) => row?.read<int>('balance_santim') ?? 0,
-    );
+    return _balanceStatement(
+      customerId,
+    ).watchSingleOrNull().map((row) => row?.read<int>('balance_santim') ?? 0);
   }
 
   /// Alias for [watchOutstandingBalance].
-  Stream<int> watchBalance(String customerId) => watchOutstandingBalance(customerId);
+  Stream<int> watchBalance(String customerId) =>
+      watchOutstandingBalance(customerId);
 
   /// Returns the summed outstanding balance for all active customers in this shop.
   Future<int> getTotalOutstanding() async {
@@ -235,6 +275,24 @@ final class LocalLedgerRepository {
             (entry) => OrderingTerm.desc(entry.id),
           ]))
         .watch();
+  }
+
+  /// Watches all ledger entries in this shop in reverse chronological order.
+  Stream<List<LedgerEntry>> watchAllEntries({int? limit, String? kind}) {
+    final query = _database.select(_database.ledgerEntries)
+      ..where((entry) => entry.shopId.equals(shopId));
+    if (kind != null) {
+      query.where((entry) => entry.kind.equals(kind));
+    }
+    query.orderBy([
+      (entry) => OrderingTerm.desc(entry.occurredAt),
+      (entry) => OrderingTerm.desc(entry.createdAt),
+      (entry) => OrderingTerm.desc(entry.id),
+    ]);
+    if (limit != null) {
+      query.limit(limit);
+    }
+    return query.watch();
   }
 
   Future<Customer> _requireActiveCustomer(String customerId) async {
