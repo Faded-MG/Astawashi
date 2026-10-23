@@ -1,3 +1,181 @@
 {
-  "@@locale": "en"
+  "@@locale": "en",
+  "appTitle": "Astawash",
+  "@appTitle": {
+    "description": "App title"
+  },
+  "appTagline": "Keep track. Grow together.",
+  "@appTagline": {
+    "description": "App tagline"
+  },
+  "save": "Save",
+  "cancel": "Cancel",
+  "confirm": "Confirm",
+  "delete": "Delete",
+  "edit": "Edit",
+  "back": "Back",
+  "search": "Search",
+  "retry": "Retry",
+  "loading": "Loading...",
+  "error": "An error occurred",
+  "empty": "No records found",
+  "birr": "Birr",
+  "etb": "ETB",
+  "skip": "Skip",
+  "next": "Next",
+  "getStarted": "Get Started",
+  "onboardingTitle1": "Never lose track of credit",
+  "onboardingDesc1": "Record credit sales and repayments in seconds, even without an internet connection.",
+  "onboardingTitle2": "Friendly SMS reminders",
+  "onboardingDesc2": "Send polite and transparent payment reminders to your customers with a single tap.",
+  "onboardingTitle3": "100% Offline-First",
+  "onboardingDesc3": "Your data stays safe on your device and syncs securely whenever you are online.",
+  "signIn": "Sign In",
+  "welcomeBack": "Welcome Back",
+  "signInSubtitle": "Enter your phone number and 4-digit PIN to access your shop.",
+  "phoneNumber": "Phone Number",
+  "phoneHint": "09XXXXXXXX",
+  "pin": "4-Digit PIN",
+  "pinHint": "••••",
+  "enterValidPhone": "Please enter a valid Ethiopian phone number",
+  "enterValidPin": "PIN must be 4 digits",
+  "continueOffline": "Continue in Offline Mode",
+  "offlineShopNotice": "You can record sales and customers locally without signing in.",
+  "dashboard": "Dashboard",
+  "totalOutstanding": "Total Outstanding",
+  "customersWithBalance": "{count, plural, =1{1 customer with balance} other{{count} customers with balance}}",
+  "@customersWithBalance": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "newCreditSale": "New Credit",
+  "recordRepayment": "Repayment",
+  "addCustomer": "Add Customer",
+  "recentActivity": "Recent Activity",
+  "viewAll": "See all",
+  "noRecentActivity": "No recent transactions. Record a sale to start.",
+  "syncStatusSynced": "Synced",
+  "syncStatusPending": "{count} Pending",
+  "@syncStatusPending": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "syncStatusOffline": "Offline",
+  "customers": "Customers",
+  "searchCustomersHint": "Search by name or phone...",
+  "filterAll": "All",
+  "filterWithBalance": "With Balance",
+  "filterSettled": "Settled",
+  "owesLabel": "Owes",
+  "settledLabel": "Settled",
+  "newCustomerTitle": "Add New Customer",
+  "customerName": "Customer Name",
+  "customerNameHint": "e.g. Abebe Kebede",
+  "customerPhone": "Phone Number (Optional)",
+  "customerNote": "Note (Optional)",
+  "customerNoteHint": "e.g. House #14, Green gate",
+  "saveCustomer": "Save Customer",
+  "customerAddedSuccess": "Customer added successfully",
+  "noCustomersFound": "No customers found",
+  "callCustomer": "Call",
+  "sendReminder": "Send Reminder",
+  "reminderMessage": "Hello {name}, this is a friendly reminder that you have an outstanding credit balance of ETB {amount} at {shopName}. Thank you!",
+  "@reminderMessage": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      },
+      "shopName": {
+        "type": "String"
+      }
+    }
+  },
+  "customerDetail": "Customer Details",
+  "currentBalance": "Current Balance",
+  "addCreditAction": "+ Add Credit",
+  "recordPaymentAction": "Record Payment",
+  "transactionHistory": "Transaction History",
+  "noTransactionsCustomer": "No transactions recorded for this customer yet.",
+  "newCreditSaleTitle": "New Credit Sale",
+  "selectCustomer": "Select Customer",
+  "chooseCustomerHint": "Choose a customer",
+  "saleAmount": "Sale Amount (Birr)",
+  "amountPlaceholder": "0.00",
+  "itemsNote": "Items / Notes (Optional)",
+  "itemsNoteHint": "e.g. Sugar 2kg, Cooking oil 1L",
+  "transactionDate": "Date & Time",
+  "saveCreditSale": "Save Credit Sale",
+  "creditSaleSuccess": "Credit sale recorded",
+  "invalidAmount": "Please enter a valid amount greater than 0",
+  "recordRepaymentTitle": "Record Repayment",
+  "paymentAmount": "Payment Amount (Birr)",
+  "currentDebtNotice": "Current balance: {balance}",
+  "@currentDebtNotice": {
+    "placeholders": {
+      "balance": {
+        "type": "String"
+      }
+    }
+  },
+  "fullBalanceChip": "Full Balance",
+  "paymentMethod": "Payment Method",
+  "methodCash": "Cash",
+  "methodDigital": "Digital Payment",
+  "digitalMethodNotice": "For record keeping only — no gateway integration.",
+  "repaymentNote": "Reference / Note (Optional)",
+  "repaymentNoteHint": "e.g. Paid at kiosk, Telebirr txn",
+  "confirmRepayment": "Confirm Repayment",
+  "repaymentSuccess": "Repayment recorded",
+  "amountExceedsBalance": "Payment amount cannot exceed outstanding balance of {balance}",
+  "@amountExceedsBalance": {
+    "placeholders": {
+      "balance": {
+        "type": "String"
+      }
+    }
+  },
+  "ledger": "Ledger",
+  "filterAllTransactions": "All",
+  "filterSales": "Sales",
+  "filterRepayments": "Repayments",
+  "transactionCredit": "Credit Sale",
+  "transactionPayment": "Repayment",
+  "transactionReversal": "Reversal",
+  "reverseEntryAction": "Reverse Entry",
+  "reverseConfirmTitle": "Reverse this transaction?",
+  "reverseConfirmMessage": "This will add an immutable reversal entry to correct the balance. The original entry remains in the audit log.",
+  "reversalSuccess": "Transaction reversed",
+  "alreadyReversed": "This entry has already been reversed",
+  "more": "More",
+  "shopProfile": "Shop Profile",
+  "defaultShopName": "Neighborhood Shop",
+  "deviceIdLabel": "Device ID",
+  "languageSetting": "Language",
+  "languageEnglish": "English",
+  "languageAmharic": "አማርኛ (Amharic)",
+  "offlineAndSync": "Offline & Synchronization",
+  "syncNow": "Sync Now",
+  "syncSuccess": "Sync completed successfully",
+  "syncInProgress": "Syncing...",
+  "unsyncedEntries": "{count, plural, =1{1 unsynced record} other{{count} unsynced records}}",
+  "@unsyncedEntries": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "allSyncedNotice": "All records are synced with the server.",
+  "aboutAstawash": "About Astawash",
+  "appVersion": "Version 1.0.0",
+  "appDescription": "Astawash is an offline-first digital credit ledger for Ethiopian neighborhood shops."
 }

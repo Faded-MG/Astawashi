@@ -133,31 +133,34 @@ void main() {
       expect(historyLengths, containsAllInOrder([0, 1]));
     });
 
-    test('aggregates total outstanding across active customers and excludes soft-deleted ones', () async {
-      final first = await addCustomer('Abebe Kebede');
-      final second = await addCustomer('Chaltu Bekele');
+    test(
+      'aggregates total outstanding across active customers and excludes soft-deleted ones',
+      () async {
+        final first = await addCustomer('Abebe Kebede');
+        final second = await addCustomer('Chaltu Bekele');
 
-      await repository.addCredit(customerId: first.id, amountSantim: 2500);
-      await repository.addPayment(customerId: first.id, amountSantim: 1000);
-      await repository.addCredit(customerId: second.id, amountSantim: 1200);
+        await repository.addCredit(customerId: first.id, amountSantim: 2500);
+        await repository.addPayment(customerId: first.id, amountSantim: 1000);
+        await repository.addCredit(customerId: second.id, amountSantim: 1200);
 
-      expect(await repository.getTotalOutstanding(), 2700);
-      expect(await repository.getBalance(first.id), 1500);
-      expect(await repository.watchTotalOutstanding().first, 2700);
-      expect(await repository.watchBalance(first.id).first, 1500);
+        expect(await repository.getTotalOutstanding(), 2700);
+        expect(await repository.getBalance(first.id), 1500);
+        expect(await repository.watchTotalOutstanding().first, 2700);
+        expect(await repository.watchBalance(first.id).first, 1500);
 
-      await (database.update(
-        database.customers,
-      )..where((customer) => customer.id.equals(second.id))).write(
-        CustomersCompanion(
-          deletedAt: Value(fixedTime.add(const Duration(minutes: 5))),
-          updatedAt: Value(fixedTime.add(const Duration(minutes: 5))),
-        ),
-      );
+        await (database.update(
+          database.customers,
+        )..where((customer) => customer.id.equals(second.id))).write(
+          CustomersCompanion(
+            deletedAt: Value(fixedTime.add(const Duration(minutes: 5))),
+            updatedAt: Value(fixedTime.add(const Duration(minutes: 5))),
+          ),
+        );
 
-      expect(await repository.getTotalOutstanding(), 1500);
-      expect(await repository.watchTotalOutstanding().first, 1500);
-    });
+        expect(await repository.getTotalOutstanding(), 1500);
+        expect(await repository.watchTotalOutstanding().first, 1500);
+      },
+    );
 
     test(
       'rejects zero and negative transaction amounts without writes',
@@ -299,5 +302,49 @@ void main() {
       );
       expect(await database.select(database.ledgerEntries).get(), hasLength(1));
     });
+
+    test('updates customer and soft-deletes customer', () async {
+      final customer = await addCustomer('Initial Name');
+      await repository.updateCustomer(
+        customerId: customer.id,
+        name: 'Updated Name',
+        phone: '0988776655',
+        note: 'Updated Note',
+      );
+      final updated = await repository.getCustomer(customer.id);
+      expect(updated?.name, 'Updated Name');
+      expect(updated?.phone, '0988776655');
+      expect(updated?.note, 'Updated Note');
+
+      await repository.softDeleteCustomer(customer.id);
+      final deleted = await repository.getCustomer(customer.id);
+      expect(deleted, isNull);
+    });
+
+    test(
+      'watchAllEntries watches all ledger entries across customers with optional filter',
+      () async {
+        final first = await addCustomer('Cust A');
+        final second = await addCustomer('Cust B');
+
+        await repository.addCredit(customerId: first.id, amountSantim: 1000);
+        await repository.addCredit(customerId: second.id, amountSantim: 2000);
+        await repository.addPayment(customerId: first.id, amountSantim: 500);
+
+        final all = await repository.watchAllEntries().first;
+        expect(all, hasLength(3));
+
+        final paymentsOnly = await repository
+            .watchAllEntries(kind: 'payment')
+            .first;
+        expect(paymentsOnly, hasLength(1));
+        expect(paymentsOnly.first.amountSantim, 500);
+
+        final creditsOnly = await repository
+            .watchAllEntries(kind: 'credit')
+            .first;
+        expect(creditsOnly, hasLength(2));
+      },
+    );
   });
 }
