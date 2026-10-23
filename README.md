@@ -220,31 +220,32 @@ Sync is a background concern. The UI never waits on it.
 { "deviceId": "…", "customers": [ … ], "entries": [ … ] }
 ```
 
-1. Everything runs in **one database transaction**.
+1. The entire push request runs in **one database transaction**. Concurrent sync writes are serialized so server sequence cursor order follows commit order.
 2. Customers are upserted first (last-write-wins on `updated_at`).
 3. Entries are inserted with `INSERT … ON CONFLICT (id) DO NOTHING`.
-4. The server validates: the shop comes from the **JWT, never the request body**; the customer exists; `amount > 0`; the delta matches the kind.
-5. Response: `{ "acceptedCustomerIds": [...], "acceptedEntryIds": [...] }`. Duplicates count as accepted.
-6. The client sets `synced_at` only for accepted IDs. Batches are limited to 200 items.
+4. The server validates shop ownership from the **JWT, never the request body**, immutable UUID conflicts, customer ownership, money/delta semantics, and reversal rules.
+5. Response distinguishes accepted, already-accepted, and rejected customer and ledger IDs.
+6. The client sets `synced_at` only for acknowledged IDs. A batch is limited to 200 total changes.
 
-### Pull: `GET /sync/pull?since=<seq>&limit=500`
+### Pull: `GET /sync/pull?since=<seq>&limit=50`
 
-- Every server write is stamped with `server_seq = nextval('change_seq')`.
-- The server returns rows with `server_seq > since` in order, plus `nextSeq` and `hasMore`.
-- The client upserts by `id`, stores `nextSeq`, and loops while `hasMore`.
+- Customers and ledger entries are returned in one deterministic sequence-ordered page.
+- `nextCursor` is the last included server sequence (or `null` for an empty page); `hasMore` indicates whether another page remains.
+- The client applies the full page and cursor in one SQLite transaction, then repeats while `hasMore`.
 
-### When sync runs
+### Current sync integration
 
-App start · after each local write (debounced 3 s) · when connectivity returns · manual "Sync now" button.
+The API client supports registration, login, secure token storage, refresh-token rotation, push, and pull. `SyncEngine.synchronize()` is implemented and callable by the application layer. Automatic scheduling, connectivity-triggered sync, UI status, and app-screen integration are not wired yet.
 
 ### Failure rules
 
 | Situation | Behavior |
 |---|---|
 | Network error | Leave `synced_at` NULL, retry with backoff. |
-| `401` | Stop syncing, keep recording locally. |
-| Validation error on one item | Mark that item `sync_error` and continue. One bad row never blocks the queue. |
-| App killed mid-sync | Safe. Re-sending is harmless thanks to idempotent inserts. |
+| `401` / expired refresh token | Stop syncing, clear invalid credentials, and keep pending local changes. |
+| Rejected change | Surface its ID and reason; keep it pending for correction or explicit resolution. |
+| Network error / app interruption | Keep unacknowledged changes and retry safely using stable UUIDs. |
+| Failed pull-page application | Roll back records and cursor together; retry the same page. |
 
 ## 8. Tech Stack
 
@@ -270,8 +271,8 @@ App start · after each local write (debounced 3 s) · when connectivity returns
 | Framework | Fastify, TypeScript (strict) |
 | Validation | `zod` |
 | Database access | `pg` with plain SQL migrations, **no ORM**, so `ON CONFLICT` and sequences stay explicit |
-| Security (planned) | `argon2`, `@fastify/jwt`, `@fastify/rate-limit` |
-| Tests | `vitest` against Docker Postgres |
+| Security | `argon2`, `@fastify/jwt`, `@fastify/rate-limit` |
+| Tests | `vitest`; PostgreSQL integration tests use `TEST_DATABASE_URL` |
 | Local infra | Docker Compose (PostgreSQL 16) |
 
 ## 9. Repository Layout
@@ -286,7 +287,7 @@ Astawashi/
 │   │   │   ├── db/             Drift database, tables, append-only triggers
 │   │   │   ├── money/          santim ⇄ birr parsing and formatting
 │   │   │   ├── l10n/           ARB files and generated localizations
-│   │   │   └── sync/           (planned) SyncEngine, outbox, API client
+│   │   │   └── sync/           SyncEngine, secure token store, Dio API client
 │   │   └── features/           (planned) auth, customers, ledger, reminders, settings
 │   ├── assets/fonts/           Noto Sans Ethiopic
 │   └── test/                   unit and widget tests
@@ -320,11 +321,30 @@ docker compose up -d
 ```bash
 cd backend
 npm install
+npm run migrate     # apply numbered PostgreSQL migrations
 npm test            # runs vitest
 npm run build       # compiles TypeScript to dist/
 npm start           # serves on http://localhost:3000
 curl http://localhost:3000/health     # → {"status":"ok"}
+curl http://localhost:3000/ready      # → database readiness
 ```
+
+#### Deployment configuration
+
+Set these backend environment variables in the deployment environment; do not put production values in source control:
+
+| Variable | Required | Default / purpose |
+|---|---:|---|
+| `DATABASE_URL` | Yes in production | PostgreSQL connection string. Local development defaults to the Compose database. |
+| `JWT_SECRET` | Yes in production | At least 32 characters; production startup fails if missing or too short. |
+| `ACCESS_TOKEN_TTL_SECONDS` | No | Positive integer; default `900`. |
+| `REFRESH_TOKEN_TTL_SECONDS` | No | Positive integer; default `2592000`. |
+| `LOGIN_RATE_LIMIT_MAX` | No | Positive integer; default `5`. |
+| `LOGIN_RATE_LIMIT_WINDOW_MS` | No | Positive integer; default `60000`. |
+
+Apply migrations as a release step using `cd backend && npm run migrate` with the target `DATABASE_URL`, after taking a database backup and before routing traffic to a release that depends on the new schema. Test migrations on a disposable database first. The server does not run migrations automatically. `/health` is a process liveness check; `/ready` checks PostgreSQL connectivity.
+
+The mobile `BackendApiClient` receives the backend base URL from its caller; use the environment-specific HTTPS API URL in the app configuration. The API is a native-client API and currently has no browser CORS policy because no web client is shipped. Configure an explicit origin allowlist before introducing browser-based clients.
 
 ### Mobile
 
@@ -346,6 +366,9 @@ Correctness of money is the product, so tests come **before** UI.
 - `mobile/test/core/money/santim_test.dart`: parsing, formatting, rejection of invalid or unrepresentable input, 64-bit boundaries
 - `mobile/test/core/db/app_database_test.dart`: schema lifecycle, CHECK constraints, foreign keys, and the append-only triggers (DELETE and financial UPDATE blocked; sync metadata updates allowed)
 - `backend/test/health.test.ts`: health endpoint
+- `backend/test/sync.test.ts` and `backend/test/sync.routes.test.ts`: sync validation, authentication, cursor behavior, and rollback tests
+- `backend/test/sync.postgres.test.ts`: live PostgreSQL integration tests when `TEST_DATABASE_URL` points at a disposable migrated test database
+- `mobile/test/core/sync/sync_engine_test.dart`: offline push, acknowledgement, retry, auth failure, transactional pull, and cursor behavior
 
 **Required before the matching features ship**
 
@@ -362,15 +385,9 @@ Status is based on what exists in the repository.
 | Session | Scope | Status |
 |---|---|---|
 | **0 · Setup** | Monorepo, Postgres Compose, Flutter and backend scaffolds, bundled Ethiopic font | ✅ Done |
-| **1 · Core ledger (local only)** | | 🟡 In progress |
-| | Money helpers + tests | ✅ Done |
-| | Drift tables, constraints, append-only triggers + tests | ✅ Done |
-| | Ledger repository (`addCredit`, `addPayment`, `reverseEntry`, `watchBalance`, `watchHistory`, `watchTotalOutstanding`) | ⬜ Next |
-| | Ledger unit tests | ⬜ Planned |
-| | Customers repository | ⬜ Planned |
-| | Screens: customer list, detail, add credit/payment sheets, total outstanding | ⬜ Planned |
-| **2 · Backend + auth** | Migrations, register/login/refresh, rate limit, mobile login | ⬜ Planned |
-| **3 · Sync** | `/sync/push`, `/sync/pull`, backend tests, mobile SyncEngine, status indicator | ⬜ Planned |
+| **1 · Core ledger (local only)** | Drift schema, integer money helpers, local customer/ledger repository, balance and append-only tests | ✅ Implemented; UI screens remain planned |
+| **2 · Backend + auth** | PostgreSQL migrations, register/login/refresh, rate limit, access-token validation | ✅ Implemented; live PostgreSQL migration path verified locally |
+| **3 · Sync** | Authenticated backend push/pull, PostgreSQL integrity, mobile API/token client, Drift SyncEngine | 🟡 Implemented and partially verified; app lifecycle/UI wiring and deployed-service end-to-end test remain |
 | **4 · Bilingual + reminders** | Full en/am coverage, language switch, reminder list, SMS template | ⬜ Planned |
 | **5 · Hardening + evaluation** | Empty/error states, optional app lock, usability test, final docs | ⬜ Planned |
 
@@ -405,6 +422,5 @@ Results will be added here once collected.
 - [`.cursor/rules/git-workflow.mdc`](.cursor/rules/git-workflow.mdc): branch and PR workflow
 
 ---
-
 
 

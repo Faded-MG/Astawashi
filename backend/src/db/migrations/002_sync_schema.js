@@ -30,7 +30,7 @@ exports.up = (pgm) => {
       deleted_at: { type: 'timestamptz' },
       synced_at: { type: 'timestamptz' },
       server_seq: {
-        type: 'bigserial',
+        type: 'bigint',
         notNull: true,
         default: pgm.func('nextval(\'change_seq\')'),
       },
@@ -81,7 +81,7 @@ exports.up = (pgm) => {
       device_id: { type: 'text', notNull: true },
       synced_at: { type: 'timestamptz' },
       server_seq: {
-        type: 'bigserial',
+        type: 'bigint',
         notNull: true,
         default: pgm.func('nextval(\'change_seq\')'),
       },
