@@ -15,8 +15,8 @@ void main() {
   });
 
   group('AppDatabase Lifecycle & Initial Schema', () {
-    test('database opens with schema version 1 and closes cleanly', () async {
-      expect(db.schemaVersion, equals(1));
+    test('database opens with schema version 2 and closes cleanly', () async {
+      expect(db.schemaVersion, equals(2));
       // Simple query to verify connection is open and active
       final customers = await db.select(db.customers).get();
       expect(customers, isEmpty);

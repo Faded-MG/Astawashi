@@ -107,4 +107,7 @@ class SyncState extends Table {
 
   /// Server sequence number cursor.
   Int64Column get lastPullSeq => int64().nullable()();
+
+  /// Active local shop scope, retained when authentication expires.
+  TextColumn get activeShopId => text().nullable()();
 }
