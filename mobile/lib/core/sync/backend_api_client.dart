@@ -26,6 +26,8 @@ class BackendApiClient implements SyncApi {
   final TokenStore _tokenStore;
   String? _shopId;
 
+  bool get isAuthenticated => _shopId != null;
+
   @override
   String get shopId =>
       _shopId ?? (throw StateError('Authenticate before synchronizing.'));
