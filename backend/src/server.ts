@@ -1,6 +1,7 @@
 import Fastify, { type FastifyRequest } from 'fastify';
 import rateLimit from '@fastify/rate-limit';
 import jwt from '@fastify/jwt';
+import { ZodError } from 'zod';
 
 import { config } from './config.js';
 import { dbPool, isDatabaseReachable } from './db/pool.js';
@@ -66,7 +67,7 @@ export function buildServer(options: BuildServerOptions = {}) {
       });
     }
 
-    if (error instanceof Error && 'validation' in error) {
+    if (error instanceof ZodError || (error instanceof Error && 'validation' in error)) {
       return reply.code(400).send({
         error: {
           code: 'validation_error',
