@@ -97,6 +97,96 @@ abstract class AppLocalizations {
     Locale('am'),
     Locale('en'),
   ];
+
+  /// No description provided for @appTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Astawash'**
+  String get appTitle;
+
+  /// No description provided for @offlineDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Your local ledger stays available without internet. Sign in when you are online to synchronize.'**
+  String get offlineDescription;
+
+  /// No description provided for @phoneLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone number'**
+  String get phoneLabel;
+
+  /// No description provided for @pinLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'PIN'**
+  String get pinLabel;
+
+  /// No description provided for @shopNameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Shop name (optional)'**
+  String get shopNameLabel;
+
+  /// No description provided for @loginButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in'**
+  String get loginButton;
+
+  /// No description provided for @registerButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Create shop account'**
+  String get registerButton;
+
+  /// No description provided for @syncButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Synchronize now'**
+  String get syncButton;
+
+  /// No description provided for @syncIdle.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready to synchronize'**
+  String get syncIdle;
+
+  /// No description provided for @syncInProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Synchronizing…'**
+  String get syncInProgress;
+
+  /// No description provided for @syncSucceeded.
+  ///
+  /// In en, this message translates to:
+  /// **'Synchronization complete'**
+  String get syncSucceeded;
+
+  /// No description provided for @syncFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Synchronization failed. Local records are still saved.'**
+  String get syncFailed;
+
+  /// No description provided for @authenticationRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in to synchronize. Local records remain on this device.'**
+  String get authenticationRequired;
+
+  /// No description provided for @authenticationFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Authentication failed'**
+  String get authenticationFailed;
+
+  /// No description provided for @syncResult.
+  ///
+  /// In en, this message translates to:
+  /// **'Sent {customers} customers and {entries} ledger entries.'**
+  String syncResult(int customers, int entries);
 }
 
 class _AppLocalizationsDelegate
