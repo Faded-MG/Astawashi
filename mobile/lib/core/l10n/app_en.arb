@@ -1,3 +1,28 @@
 {
-  "@@locale": "en"
+  "@@locale": "en",
+  "appTitle": "Astawash",
+  "offlineDescription": "Your local ledger stays available without internet. Sign in when you are online to synchronize.",
+  "phoneLabel": "Phone number",
+  "pinLabel": "PIN",
+  "shopNameLabel": "Shop name (optional)",
+  "loginButton": "Sign in",
+  "registerButton": "Create shop account",
+  "syncButton": "Synchronize now",
+  "syncIdle": "Ready to synchronize",
+  "syncInProgress": "Synchronizing…",
+  "syncSucceeded": "Synchronization complete",
+  "syncFailed": "Synchronization failed. Local records are still saved.",
+  "authenticationRequired": "Sign in to synchronize. Local records remain on this device.",
+  "authenticationFailed": "Authentication failed",
+  "syncResult": "Sent {customers} customers and {entries} ledger entries.",
+  "@syncResult": {
+    "placeholders": {
+      "customers": {
+        "type": "int"
+      },
+      "entries": {
+        "type": "int"
+      }
+    }
+  }
 }
