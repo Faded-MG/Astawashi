@@ -22,7 +22,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -61,6 +61,11 @@ class AppDatabase extends _$AppDatabase {
               SELECT RAISE(ABORT, 'ledger_entries is append-only: financial and audit columns cannot be modified');
             END;
           ''');
+    },
+    onUpgrade: (m, from, to) async {
+      if (from < 2) {
+        await m.addColumn(syncState, syncState.activeShopId);
+      }
     },
     beforeOpen: (details) async {
       // Enforce foreign key constraints in SQLite.
