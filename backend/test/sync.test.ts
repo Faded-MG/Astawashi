@@ -8,7 +8,9 @@ import {
   type SyncRepository,
 } from '../src/modules/sync/service.js';
 
-function createInMemorySyncRepository(): SyncRepository {
+function createInMemorySyncRepository(
+  shouldFailEntryInsert: () => boolean = () => false,
+): SyncRepository {
   const customers = new Map<string, SyncCustomerRow>();
   const entries = new Map<string, SyncEntryRow>();
   let nextSeq = 1;
@@ -19,6 +21,29 @@ function createInMemorySyncRepository(): SyncRepository {
   });
 
   return {
+    async withTransaction(operation) {
+      const customerSnapshot = new Map(
+        [...customers].map(([id, row]) => [id, { ...row }]),
+      );
+      const entrySnapshot = new Map(
+        [...entries].map(([id, row]) => [id, { ...row }]),
+      );
+      const sequenceSnapshot = nextSeq;
+      try {
+        return await operation(this);
+      } catch (error) {
+        customers.clear();
+        for (const [id, row] of customerSnapshot) {
+          customers.set(id, row);
+        }
+        entries.clear();
+        for (const [id, row] of entrySnapshot) {
+          entries.set(id, row);
+        }
+        nextSeq = sequenceSnapshot;
+        throw error;
+      }
+    },
     async upsertCustomer(customer) {
       const existing = customers.get(customer.id);
       if (!existing) {
@@ -35,11 +60,14 @@ function createInMemorySyncRepository(): SyncRepository {
       customers.set(customer.id, {
         ...existing,
         ...customer,
-        serverSeq: existing.serverSeq,
+        serverSeq: nextSeq++,
       });
       return true;
     },
     async insertEntry(entry) {
+      if (shouldFailEntryInsert()) {
+        throw new Error('Simulated database write failure.');
+      }
       if (entries.has(entry.id)) {
         return false;
       }
@@ -61,12 +89,15 @@ function createInMemorySyncRepository(): SyncRepository {
         customers: page.filter((row): row is SyncCustomerRow => 'name' in row) as SyncCustomerRow[],
         entries: page.filter((row): row is SyncEntryRow => 'customerId' in row) as SyncEntryRow[],
         hasMore: combined.length > limit,
-        nextCursor: combined.length > limit ? combined[limit - 1]?.serverSeq ?? null : null,
+        nextCursor: page[page.length - 1]?.serverSeq ?? null,
       };
     },
     async customerExistsForShop(shopId: string, customerId: string) {
       const customer = customers.get(customerId);
       return Boolean(customer && customer.shopId === shopId);
+    },
+    async getEntryById(entryId: string) {
+      return entries.get(entryId) ?? null;
     },
     async getEntryByIdForShop(shopId: string, entryId: string) {
       const entry = entries.get(entryId);
@@ -75,6 +106,9 @@ function createInMemorySyncRepository(): SyncRepository {
     async getCustomerByIdForShop(shopId: string, customerId: string) {
       const customer = customers.get(customerId);
       return customer && customer.shopId === shopId ? customer : null;
+    },
+    async getCustomerById(customerId: string) {
+      return customers.get(customerId) ?? null;
     },
     async getReversalForEntry(shopId: string, entryId: string) {
       for (const entry of entries.values()) {
@@ -216,6 +250,75 @@ describe('SyncService', () => {
 
     expect(conflicting.rejectedEntries[0]?.reason).toContain('conflicting immutable');
     expect(crossShop.rejectedEntries[0]?.reason).toContain('Customer does not belong to this shop');
+  });
+
+  it('does not overwrite a customer UUID owned by another shop', async () => {
+    const service = new SyncService(createInMemorySyncRepository());
+    const customerId = '88888888-8888-4888-8888-888888888888';
+    await service.push('shop-1', {
+      customers: [{
+        id: customerId,
+        name: 'Original',
+        createdAt: '2026-10-12T09:00:00.000Z',
+        updatedAt: '2026-10-12T09:00:00.000Z',
+      }],
+      entries: [],
+    });
+
+    const result = await service.push('shop-2', {
+      customers: [{
+        id: customerId,
+        name: 'Attempted overwrite',
+        createdAt: '2026-10-12T10:00:00.000Z',
+        updatedAt: '2026-10-12T10:00:00.000Z',
+      }],
+      entries: [],
+    });
+
+    expect(result.rejectedCustomers[0]?.reason).toContain('another shop');
+    expect(await service.pull('shop-1', { since: 0, limit: 10 })).toMatchObject({
+      customers: [{ name: 'Original' }],
+    });
+    expect(await service.pull('shop-2', { since: 0, limit: 10 })).toMatchObject({
+      customers: [],
+    });
+  });
+
+  it('rolls back every change when a database write fails during a batch', async () => {
+    let failInsert = true;
+    const repository = createInMemorySyncRepository(() => failInsert);
+    const service = new SyncService(repository);
+    const payload = {
+      customers: [{
+        id: '98989898-9898-4989-8989-989898989898',
+        name: 'Rollback customer',
+        createdAt: '2026-10-12T09:00:00.000Z',
+        updatedAt: '2026-10-12T09:00:00.000Z',
+      }],
+      entries: [{
+        id: '97979797-9797-4979-8979-979797979797',
+        customerId: '98989898-9898-4989-8989-989898989898',
+        kind: 'credit' as const,
+        amountSantim: 100,
+        deltaSantim: 100,
+        occurredAt: '2026-10-12T09:10:00.000Z',
+        createdAt: '2026-10-12T09:10:00.000Z',
+        deviceId: 'device-1',
+      }],
+    };
+
+    await expect(service.push('shop-1', payload)).rejects.toThrow(
+      'Simulated database write failure',
+    );
+    expect(await service.pull('shop-1', { since: 0, limit: 10 })).toMatchObject({
+      customers: [],
+      entries: [],
+    });
+
+    failInsert = false;
+    const retried = await service.push('shop-1', payload);
+    expect(retried.acceptedCustomerIds).toContain('98989898-9898-4989-8989-989898989898');
+    expect(retried.acceptedEntryIds).toContain('97979797-9797-4979-8979-979797979797');
   });
 
   it('rejects invalid amount, delta, and reversal rules', async () => {
@@ -380,5 +483,14 @@ describe('SyncService', () => {
     const secondPage = await service.pull('shop-1', { since: firstPage.nextCursor ?? 0, limit: 10 });
     expect(secondPage.customers.length + secondPage.entries.length).toBeGreaterThan(0);
     expect(secondPage.hasMore).toBe(false);
+    expect(secondPage.nextCursor).not.toBeNull();
+
+    const emptyPage = await service.pull('shop-1', {
+      since: secondPage.nextCursor ?? 0,
+      limit: 10,
+    });
+    expect(emptyPage.customers).toEqual([]);
+    expect(emptyPage.entries).toEqual([]);
+    expect(emptyPage.nextCursor).toBeNull();
   });
 });
