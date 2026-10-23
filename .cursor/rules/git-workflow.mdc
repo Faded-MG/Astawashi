@@ -26,14 +26,15 @@ Maintain a professional, reviewable, authentic Git history. Every change traceab
 - Conventional Commits: `feat:`, `fix:`, `test:`, `refactor:`, `docs:`, `chore:`.
 - Small, meaningful, each a real completed unit of work, coherent state, related changes only, tests included where appropriate.
 - No empty commits. No artificial splitting of one change into fake history.
-- Never backdate or alter timestamps or authorship. Never rewrite published history.
+- Preserve timestamps and authorship by default. An explicit owner request may authorize timestamp changes, including backdating, but must not alter authorship or imply that commit timestamps independently prove when work was performed.
+- Rewriting published history or force-pushing a shared branch requires explicit owner authorization. When authorized, use `--force-with-lease` and preserve a local backup reference to the previous tip.
 
 ## 4. Commit and Push Policy
 After a logical unit of work:
 1. Run formatter, static analysis, relevant tests.
 2. Review the diff: correctness, security, secrets, unrelated changes.
 3. Commit on the feature branch.
-4. Push the branch (never `main`). Confirm it won't overwrite others' work. Never force-push shared branches.
+4. Push the branch (never `main`). Confirm it won't overwrite others' work. Never force-push shared branches without explicit owner authorization; if authorized, use `--force-with-lease`.
 5. Report: summary, tests, commit hash, branch name.
 If push is blocked (credentials, network, failing test), report the actual result. Never claim success.
 
@@ -46,8 +47,8 @@ After implement + test + commit + push:
 5. After approval, merge per repo policy; delete the branch only after successful integration.
 
 ## 6. Authentic History
-- Preserve existing timestamps and authorship. Record work when actually done.
-- Do not fabricate commits, work sessions, dates, or contribution activity.
+- Preserve existing timestamps and authorship unless the owner explicitly authorizes timestamp changes. Record work when actually done.
+- Do not fabricate authorship, work sessions, or contribution activity; do not treat commit timestamps as independent proof of when work was performed.
 - Roadmaps are planning documents and must not imply tasks were completed on dates they were not.
 
 ## 7. Per-Task Report Format
