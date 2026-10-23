@@ -13,9 +13,13 @@ import {
   registerSchema,
 } from './modules/auth/service.js';
 import type { AuthRepository } from './modules/auth/types.js';
+import { PostgresSyncRepository } from './modules/sync/repository.js';
+import { SyncService, syncPullQuerySchema, syncPushRequestSchema } from './modules/sync/service.js';
 
 export interface BuildServerOptions {
   authRepository?: AuthRepository;
+  syncRepository?: PostgresSyncRepository;
+  syncService?: SyncService;
   jwtSecret?: string;
   readinessCheck?: () => Promise<boolean>;
 }
@@ -39,6 +43,8 @@ export function buildServer(options: BuildServerOptions = {}) {
     config.accessTokenTtlSeconds,
     config.refreshTokenTtlSeconds,
   );
+  const syncRepository = options.syncRepository ?? new PostgresSyncRepository(dbPool);
+  const syncService = options.syncService ?? new SyncService(syncRepository);
 
   app.register(jwt, { secret: jwtSecret });
   app.register(rateLimit, {
@@ -129,6 +135,20 @@ export function buildServer(options: BuildServerOptions = {}) {
       shopId: claims.shopId,
       type: claims.type,
     });
+  });
+
+  app.post('/sync/push', async (request, reply) => {
+    const claims = await verifyAccessToken(request);
+    const payload = syncPushRequestSchema.parse(request.body);
+    const result = await syncService.push(claims.shopId, payload);
+    return reply.code(200).send(result);
+  });
+
+  app.get('/sync/pull', async (request, reply) => {
+    const claims = await verifyAccessToken(request);
+    const query = syncPullQuerySchema.parse(request.query);
+    const page = await syncService.pull(claims.shopId, query);
+    return reply.code(200).send(page);
   });
 
   return app;
