@@ -18,6 +18,8 @@ class AppSyncController extends ChangeNotifier {
   final BackendApiClient _apiClient;
   final SyncEngine _syncEngine;
 
+  String get shopId => _apiClient.shopId;
+
   bool isAuthenticated;
   bool isAuthenticating = false;
   AppSyncStatus status = AppSyncStatus.idle;

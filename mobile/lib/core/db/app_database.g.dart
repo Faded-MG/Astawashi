@@ -1453,8 +1453,19 @@ class $SyncStateTable extends SyncState
     type: DriftSqlType.bigInt,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _activeShopIdMeta = const VerificationMeta(
+    'activeShopId',
+  );
   @override
-  List<GeneratedColumn> get $columns => [id, lastPullSeq];
+  late final GeneratedColumn<String> activeShopId = GeneratedColumn<String>(
+    'active_shop_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, lastPullSeq, activeShopId];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -1479,6 +1490,15 @@ class $SyncStateTable extends SyncState
         ),
       );
     }
+    if (data.containsKey('active_shop_id')) {
+      context.handle(
+        _activeShopIdMeta,
+        activeShopId.isAcceptableOrUnknown(
+          data['active_shop_id']!,
+          _activeShopIdMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -1496,6 +1516,10 @@ class $SyncStateTable extends SyncState
         DriftSqlType.bigInt,
         data['${effectivePrefix}last_pull_seq'],
       ),
+      activeShopId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}active_shop_id'],
+      ),
     );
   }
 
@@ -1511,13 +1535,19 @@ class SyncStateData extends DataClass implements Insertable<SyncStateData> {
 
   /// Server sequence number cursor.
   final BigInt? lastPullSeq;
-  const SyncStateData({required this.id, this.lastPullSeq});
+
+  /// Active local shop scope, retained when authentication expires.
+  final String? activeShopId;
+  const SyncStateData({required this.id, this.lastPullSeq, this.activeShopId});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
     if (!nullToAbsent || lastPullSeq != null) {
       map['last_pull_seq'] = Variable<BigInt>(lastPullSeq);
+    }
+    if (!nullToAbsent || activeShopId != null) {
+      map['active_shop_id'] = Variable<String>(activeShopId);
     }
     return map;
   }
@@ -1528,6 +1558,9 @@ class SyncStateData extends DataClass implements Insertable<SyncStateData> {
       lastPullSeq: lastPullSeq == null && nullToAbsent
           ? const Value.absent()
           : Value(lastPullSeq),
+      activeShopId: activeShopId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(activeShopId),
     );
   }
 
@@ -1539,6 +1572,7 @@ class SyncStateData extends DataClass implements Insertable<SyncStateData> {
     return SyncStateData(
       id: serializer.fromJson<int>(json['id']),
       lastPullSeq: serializer.fromJson<BigInt?>(json['lastPullSeq']),
+      activeShopId: serializer.fromJson<String?>(json['activeShopId']),
     );
   }
   @override
@@ -1547,15 +1581,18 @@ class SyncStateData extends DataClass implements Insertable<SyncStateData> {
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
       'lastPullSeq': serializer.toJson<BigInt?>(lastPullSeq),
+      'activeShopId': serializer.toJson<String?>(activeShopId),
     };
   }
 
   SyncStateData copyWith({
     int? id,
     Value<BigInt?> lastPullSeq = const Value.absent(),
+    Value<String?> activeShopId = const Value.absent(),
   }) => SyncStateData(
     id: id ?? this.id,
     lastPullSeq: lastPullSeq.present ? lastPullSeq.value : this.lastPullSeq,
+    activeShopId: activeShopId.present ? activeShopId.value : this.activeShopId,
   );
   SyncStateData copyWithCompanion(SyncStateCompanion data) {
     return SyncStateData(
@@ -1563,6 +1600,9 @@ class SyncStateData extends DataClass implements Insertable<SyncStateData> {
       lastPullSeq: data.lastPullSeq.present
           ? data.lastPullSeq.value
           : this.lastPullSeq,
+      activeShopId: data.activeShopId.present
+          ? data.activeShopId.value
+          : this.activeShopId,
     );
   }
 
@@ -1570,46 +1610,58 @@ class SyncStateData extends DataClass implements Insertable<SyncStateData> {
   String toString() {
     return (StringBuffer('SyncStateData(')
           ..write('id: $id, ')
-          ..write('lastPullSeq: $lastPullSeq')
+          ..write('lastPullSeq: $lastPullSeq, ')
+          ..write('activeShopId: $activeShopId')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, lastPullSeq);
+  int get hashCode => Object.hash(id, lastPullSeq, activeShopId);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is SyncStateData &&
           other.id == this.id &&
-          other.lastPullSeq == this.lastPullSeq);
+          other.lastPullSeq == this.lastPullSeq &&
+          other.activeShopId == this.activeShopId);
 }
 
 class SyncStateCompanion extends UpdateCompanion<SyncStateData> {
   final Value<int> id;
   final Value<BigInt?> lastPullSeq;
+  final Value<String?> activeShopId;
   const SyncStateCompanion({
     this.id = const Value.absent(),
     this.lastPullSeq = const Value.absent(),
+    this.activeShopId = const Value.absent(),
   });
   SyncStateCompanion.insert({
     this.id = const Value.absent(),
     this.lastPullSeq = const Value.absent(),
+    this.activeShopId = const Value.absent(),
   });
   static Insertable<SyncStateData> custom({
     Expression<int>? id,
     Expression<BigInt>? lastPullSeq,
+    Expression<String>? activeShopId,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (lastPullSeq != null) 'last_pull_seq': lastPullSeq,
+      if (activeShopId != null) 'active_shop_id': activeShopId,
     });
   }
 
-  SyncStateCompanion copyWith({Value<int>? id, Value<BigInt?>? lastPullSeq}) {
+  SyncStateCompanion copyWith({
+    Value<int>? id,
+    Value<BigInt?>? lastPullSeq,
+    Value<String?>? activeShopId,
+  }) {
     return SyncStateCompanion(
       id: id ?? this.id,
       lastPullSeq: lastPullSeq ?? this.lastPullSeq,
+      activeShopId: activeShopId ?? this.activeShopId,
     );
   }
 
@@ -1622,6 +1674,9 @@ class SyncStateCompanion extends UpdateCompanion<SyncStateData> {
     if (lastPullSeq.present) {
       map['last_pull_seq'] = Variable<BigInt>(lastPullSeq.value);
     }
+    if (activeShopId.present) {
+      map['active_shop_id'] = Variable<String>(activeShopId.value);
+    }
     return map;
   }
 
@@ -1629,7 +1684,8 @@ class SyncStateCompanion extends UpdateCompanion<SyncStateData> {
   String toString() {
     return (StringBuffer('SyncStateCompanion(')
           ..write('id: $id, ')
-          ..write('lastPullSeq: $lastPullSeq')
+          ..write('lastPullSeq: $lastPullSeq, ')
+          ..write('activeShopId: $activeShopId')
           ..write(')'))
         .toString();
   }
@@ -2622,9 +2678,17 @@ typedef $$LedgerEntriesTableProcessedTableManager =
       PrefetchHooks Function({bool customerId, bool reversesId})
     >;
 typedef $$SyncStateTableCreateCompanionBuilder =
-    SyncStateCompanion Function({Value<int> id, Value<BigInt?> lastPullSeq});
+    SyncStateCompanion Function({
+      Value<int> id,
+      Value<BigInt?> lastPullSeq,
+      Value<String?> activeShopId,
+    });
 typedef $$SyncStateTableUpdateCompanionBuilder =
-    SyncStateCompanion Function({Value<int> id, Value<BigInt?> lastPullSeq});
+    SyncStateCompanion Function({
+      Value<int> id,
+      Value<BigInt?> lastPullSeq,
+      Value<String?> activeShopId,
+    });
 
 class $$SyncStateTableFilterComposer
     extends Composer<_$AppDatabase, $SyncStateTable> {
@@ -2642,6 +2706,11 @@ class $$SyncStateTableFilterComposer
 
   ColumnFilters<BigInt> get lastPullSeq => $composableBuilder(
     column: $table.lastPullSeq,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get activeShopId => $composableBuilder(
+    column: $table.activeShopId,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -2664,6 +2733,11 @@ class $$SyncStateTableOrderingComposer
     column: $table.lastPullSeq,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get activeShopId => $composableBuilder(
+    column: $table.activeShopId,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$SyncStateTableAnnotationComposer
@@ -2680,6 +2754,11 @@ class $$SyncStateTableAnnotationComposer
 
   GeneratedColumn<BigInt> get lastPullSeq => $composableBuilder(
     column: $table.lastPullSeq,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get activeShopId => $composableBuilder(
+    column: $table.activeShopId,
     builder: (column) => column,
   );
 }
@@ -2717,12 +2796,22 @@ class $$SyncStateTableTableManager
               ({
                 Value<int> id = const Value.absent(),
                 Value<BigInt?> lastPullSeq = const Value.absent(),
-              }) => SyncStateCompanion(id: id, lastPullSeq: lastPullSeq),
+                Value<String?> activeShopId = const Value.absent(),
+              }) => SyncStateCompanion(
+                id: id,
+                lastPullSeq: lastPullSeq,
+                activeShopId: activeShopId,
+              ),
           createCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
                 Value<BigInt?> lastPullSeq = const Value.absent(),
-              }) => SyncStateCompanion.insert(id: id, lastPullSeq: lastPullSeq),
+                Value<String?> activeShopId = const Value.absent(),
+              }) => SyncStateCompanion.insert(
+                id: id,
+                lastPullSeq: lastPullSeq,
+                activeShopId: activeShopId,
+              ),
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
