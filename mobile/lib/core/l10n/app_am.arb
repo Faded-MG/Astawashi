@@ -1,3 +1,28 @@
 {
-  "@@locale": "am"
+  "@@locale": "am",
+  "appTitle": "አስታዋሽ",
+  "offlineDescription": "የአካባቢ መዝገብዎ ያለ ኢንተርኔት ይገኛል። ለማመሳሰል በመስመር ላይ ሲሆኑ ይግቡ።",
+  "phoneLabel": "ስልክ ቁጥር",
+  "pinLabel": "ፒን",
+  "shopNameLabel": "የሱቅ ስም (አማራጭ)",
+  "loginButton": "ግባ",
+  "registerButton": "የሱቅ መለያ ፍጠር",
+  "syncButton": "አሁን አመሳስል",
+  "syncIdle": "ለማመሳሰል ዝግጁ",
+  "syncInProgress": "በማመሳሰል ላይ…",
+  "syncSucceeded": "ማመሳሰል ተጠናቋል",
+  "syncFailed": "ማመሳሰል አልተሳካም። የአካባቢ መዝገቦች አሁንም ተቀምጠዋል።",
+  "authenticationRequired": "ለማመሳሰል ይግቡ። የአካባቢ መዝገቦች በዚህ መሣሪያ ላይ ይቆያሉ።",
+  "authenticationFailed": "ማረጋገጫ አልተሳካም",
+  "syncResult": "{customers} ደንበኞች እና {entries} የደብተር መዝገቦች ተልከዋል።",
+  "@syncResult": {
+    "placeholders": {
+      "customers": {
+        "type": "int"
+      },
+      "entries": {
+        "type": "int"
+      }
+    }
+  }
 }

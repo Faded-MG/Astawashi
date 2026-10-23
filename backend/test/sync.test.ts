@@ -183,11 +183,26 @@ describe('SyncService', () => {
     };
 
     const first = await service.push('shop-1', payload);
-    const second = await service.push('shop-1', payload);
+    const retry = {
+      ...payload,
+      customers: payload.customers.map((customer) => ({
+        ...customer,
+        createdAt: '2026-10-12T09:00:00.000123Z',
+        updatedAt: '2026-10-12T09:00:00.000123Z',
+      })),
+      entries: payload.entries.map((entry) => ({
+        ...entry,
+        occurredAt: '2026-10-12T09:20:00.000123Z',
+        createdAt: '2026-10-12T09:20:00.000123Z',
+      })),
+    };
+    const second = await service.push('shop-1', retry);
 
     expect(first.acceptedCustomerIds).toHaveLength(1);
     expect(second.alreadyAcceptedCustomerIds).toContain('33333333-3333-4333-8333-333333333333');
     expect(second.alreadyAcceptedEntryIds).toContain('44444444-4444-4444-8444-444444444444');
+    expect(second.acceptedCustomerIds).toHaveLength(0);
+    expect(second.acceptedEntryIds).toHaveLength(0);
   });
 
   it('rejects conflicting duplicate UUIDs and cross-shop access', async () => {

@@ -176,9 +176,9 @@ export class SyncService {
         existing.name === normalized.name &&
         (existing.phone ?? null) === normalized.phone &&
         (existing.note ?? null) === normalized.note &&
-        existing.createdAt === normalized.createdAt &&
-        existing.updatedAt === normalized.updatedAt &&
-        (existing.deletedAt ?? null) === normalized.deletedAt;
+        timestampsMatch(existing.createdAt, normalized.createdAt) &&
+        timestampsMatch(existing.updatedAt, normalized.updatedAt) &&
+        timestampsMatch(existing.deletedAt, normalized.deletedAt);
 
       if (samePayload) {
         alreadyAcceptedCustomerIds.push(customer.id);
@@ -240,8 +240,8 @@ export class SyncService {
           existingAcrossShops.deltaSantim === normalized.deltaSantim &&
           (existingAcrossShops.reversesId ?? null) === normalized.reversesId &&
           (existingAcrossShops.note ?? null) === normalized.note &&
-          existingAcrossShops.occurredAt === normalized.occurredAt &&
-          existingAcrossShops.createdAt === normalized.createdAt &&
+          timestampsMatch(existingAcrossShops.occurredAt, normalized.occurredAt) &&
+          timestampsMatch(existingAcrossShops.createdAt, normalized.createdAt) &&
           existingAcrossShops.deviceId === normalized.deviceId;
 
         if (samePayload) {
@@ -352,4 +352,11 @@ export class SyncService {
 
     return { valid: true };
   }
+}
+
+function timestampsMatch(left: string | null, right: string | null): boolean {
+  if (left === null || right === null) {
+    return left === right;
+  }
+  return new Date(left).getTime() === new Date(right).getTime();
 }

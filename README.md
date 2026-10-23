@@ -344,7 +344,7 @@ Set these backend environment variables in the deployment environment; do not pu
 
 Apply migrations as a release step using `cd backend && npm run migrate` with the target `DATABASE_URL`, after taking a database backup and before routing traffic to a release that depends on the new schema. Test migrations on a disposable database first. The server does not run migrations automatically. `/health` is a process liveness check; `/ready` checks PostgreSQL connectivity.
 
-The mobile `BackendApiClient` receives the backend base URL from its caller; use the environment-specific HTTPS API URL in the app configuration. The API is a native-client API and currently has no browser CORS policy because no web client is shipped. Configure an explicit origin allowlist before introducing browser-based clients.
+The Flutter app reads its backend URL from `ASTAWASH_API_BASE_URL` at build/run time; source edits are not needed to change environments. Its default is `http://localhost:3000` for desktop/iOS simulator development. For an Android emulator, use `http://10.0.2.2:3000`. Production builds must use the deployed HTTPS URL. The API is a native-client API and currently has no browser CORS policy because no web client is shipped. Configure an explicit origin allowlist before introducing browser-based clients.
 
 ### Mobile
 
@@ -354,8 +354,71 @@ flutter pub get
 dart run build_runner build --delete-conflicting-outputs   # regenerates Drift code
 flutter gen-l10n                                            # regenerates localizations
 flutter test
-flutter run
+flutter run --dart-define=ASTAWASH_API_BASE_URL=http://10.0.2.2:3000
 ```
+
+For an iOS simulator or desktop run against a local backend, use
+`--dart-define=ASTAWASH_API_BASE_URL=http://localhost:3000`. For production,
+replace the value with the deployed HTTPS API URL. The app restores credentials
+from secure storage, allows registration/login, and exposes a manual
+**Synchronize now** action. Sync failure and expired authentication are shown
+in the app; local Drift data remains available and pending rows are not cleared
+without server acknowledgement. Automatic/background synchronization is not
+enabled. The current app shell does not yet contain customer or ledger-entry
+screens; those flows remain available through the local repository and are
+exercised by the live integration test below.
+
+### Deployment and demonstration checklist
+
+1. Provision a **staging** PostgreSQL database first. Keep its TLS connection
+   string private and take a backup before schema changes.
+2. Configure the backend service's `DATABASE_URL` and a new `JWT_SECRET`
+   (generate one with `openssl rand -base64 48` and store it only in the
+   deployment provider's secret manager). Configure optional token/rate-limit
+   values only if needed. Never commit or paste real values into source.
+3. For a release, install dependencies and build, then run migrations once as a
+   release step before starting the new service:
+
+   ```bash
+   cd backend
+   npm ci
+   npm run build
+   npm run migrate
+   npm start
+   ```
+
+   On a managed platform, use `npm run migrate` as the release/pre-deploy
+   command and `npm start` as the service command. Set its readiness probe to
+   `/ready` and verify both endpoints:
+
+   ```bash
+   curl --fail https://YOUR-STAGING-API/health
+   curl --fail https://YOUR-STAGING-API/ready
+   ```
+
+4. Point a development build at staging without editing source:
+
+   ```bash
+   cd mobile
+   flutter run --dart-define=ASTAWASH_API_BASE_URL=https://YOUR-STAGING-API
+   ```
+
+   Create a test shop account in the app, sign in, and tap **Synchronize now**.
+   For automated data-bearing verification (local Drift -> deployed API ->
+   PostgreSQL -> a second local Drift database), use a disposable staging
+   database/service only:
+
+   ```bash
+   cd mobile
+   ASTAWASH_TEST_API_BASE_URL=https://YOUR-STAGING-API \
+     flutter test test/core/sync/live_sync_e2e_test.dart
+   ```
+
+   This test creates temporary test shops and ledger data on the configured
+   service. Do not point it at production. It tests a simulated network refusal,
+   retry/idempotency, pull application, balances, and shop isolation. The app
+   shell currently has no customer/ledger creation screens, so the automated
+   test uses the real local ledger repository to create those records offline.
 
 ## 11. Testing Strategy
 
@@ -369,6 +432,8 @@ Correctness of money is the product, so tests come **before** UI.
 - `backend/test/sync.test.ts` and `backend/test/sync.routes.test.ts`: sync validation, authentication, cursor behavior, and rollback tests
 - `backend/test/sync.postgres.test.ts`: live PostgreSQL integration tests when `TEST_DATABASE_URL` points at a disposable migrated test database
 - `mobile/test/core/sync/sync_engine_test.dart`: offline push, acknowledgement, retry, auth failure, transactional pull, and cursor behavior
+- `mobile/test/core/sync/app_sync_controller_test.dart` and `mobile/test/widget_test.dart`: app-level authentication, visible sync failures, and manual sync trigger
+- `mobile/test/core/sync/live_sync_e2e_test.dart`: actual API/PostgreSQL and two-local-database path when `ASTAWASH_TEST_API_BASE_URL` points at a disposable test/staging service
 
 **Required before the matching features ship**
 
@@ -387,7 +452,7 @@ Status is based on what exists in the repository.
 | **0 · Setup** | Monorepo, Postgres Compose, Flutter and backend scaffolds, bundled Ethiopic font | ✅ Done |
 | **1 · Core ledger (local only)** | Drift schema, integer money helpers, local customer/ledger repository, balance and append-only tests | ✅ Implemented; UI screens remain planned |
 | **2 · Backend + auth** | PostgreSQL migrations, register/login/refresh, rate limit, access-token validation | ✅ Implemented; live PostgreSQL migration path verified locally |
-| **3 · Sync** | Authenticated backend push/pull, PostgreSQL integrity, mobile API/token client, Drift SyncEngine | 🟡 Implemented and partially verified; app lifecycle/UI wiring and deployed-service end-to-end test remain |
+| **3 · Sync** | Authenticated backend push/pull, PostgreSQL integrity, mobile API/token client, Drift SyncEngine, app login and manual sync action | 🟡 Implemented; live end-to-end verification is environment-dependent. Customer and ledger-entry screens remain planned |
 | **4 · Bilingual + reminders** | Full en/am coverage, language switch, reminder list, SMS template | ⬜ Planned |
 | **5 · Hardening + evaluation** | Empty/error states, optional app lock, usability test, final docs | ⬜ Planned |
 
@@ -422,5 +487,4 @@ Results will be added here once collected.
 - [`.cursor/rules/git-workflow.mdc`](.cursor/rules/git-workflow.mdc): branch and PR workflow
 
 ---
-
 
