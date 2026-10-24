@@ -14,10 +14,13 @@ const databaseUrl =
   process.env.DATABASE_URL ??
   (production ? undefined : 'postgresql://astawash:astawash@localhost:5432/astawash');
 
-if (!jwtSecret || (production && jwtSecret.length < 32)) {
+if (
+  !jwtSecret ||
+  (production && (jwtSecret.trim().length === 0 || jwtSecret.length < 32))
+) {
   throw new Error('JWT_SECRET must be configured with at least 32 characters in production.');
 }
-if (!databaseUrl) {
+if (!databaseUrl || (production && databaseUrl.trim().length === 0)) {
   throw new Error('DATABASE_URL must be configured in production.');
 }
 
