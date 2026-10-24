@@ -30,6 +30,15 @@ class AppSyncController extends ChangeNotifier {
     return _authenticate(() => _apiClient.login(phone: phone, pin: pin));
   }
 
+  Future<void> logout() async {
+    await _apiClient.logout();
+    isAuthenticated = false;
+    status = AppSyncStatus.idle;
+    errorMessage = null;
+    lastReport = null;
+    notifyListeners();
+  }
+
   Future<void> register({
     required String phone,
     required String pin,

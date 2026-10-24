@@ -6,6 +6,8 @@ abstract interface class TokenStore {
   Future<SessionTokens?> read();
   Future<void> save(SessionTokens tokens);
   Future<void> clear();
+  Future<String?> readShopName();
+  Future<void> saveShopName(String name);
 }
 
 class SecureTokenStore implements TokenStore {
@@ -15,6 +17,7 @@ class SecureTokenStore implements TokenStore {
   static const _accessTokenKey = 'astawash.access_token';
   static const _refreshTokenKey = 'astawash.refresh_token';
   static const _shopIdKey = 'astawash.shop_id';
+  static const _shopNameKey = 'astawash.shop_name';
 
   final FlutterSecureStorage _storage;
 
@@ -45,5 +48,13 @@ class SecureTokenStore implements TokenStore {
     await _storage.delete(key: _accessTokenKey);
     await _storage.delete(key: _refreshTokenKey);
     await _storage.delete(key: _shopIdKey);
+    await _storage.delete(key: _shopNameKey);
   }
+
+  @override
+  Future<String?> readShopName() => _storage.read(key: _shopNameKey);
+
+  @override
+  Future<void> saveShopName(String name) =>
+      _storage.write(key: _shopNameKey, value: name);
 }

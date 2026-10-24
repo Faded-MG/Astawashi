@@ -15,18 +15,21 @@ import 'package:go_router/go_router.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final database = AppDatabase();
+  final tokenStore = SecureTokenStore();
   final apiClient = await BackendApiClient.restore(
     baseUrl: backendBaseUrl,
-    tokenStore: SecureTokenStore(),
+    tokenStore: tokenStore,
   );
   final savedState = await (database.select(
     database.syncState,
   )..where((row) => row.id.equals(1))).getSingleOrNull();
-  final activeShopId = apiClient.isAuthenticated
-      ? apiClient.shopId
-      : savedState?.activeShopId ?? offlineOnlyShopId;
+
+  final String activeShopId;
+  final String savedShopName;
 
   if (apiClient.isAuthenticated) {
+    activeShopId = apiClient.shopId;
+    savedShopName = (await tokenStore.readShopName()) ?? '';
     await database
         .into(database.syncState)
         .insertOnConflictUpdate(
@@ -35,6 +38,9 @@ Future<void> main() async {
             activeShopId: Value(activeShopId),
           ),
         );
+  } else {
+    activeShopId = savedState?.activeShopId ?? '';
+    savedShopName = '';
   }
 
   runApp(
@@ -47,6 +53,9 @@ Future<void> main() async {
         backendApiClientProvider.overrideWithValue(apiClient),
         shopIdProvider.overrideWith(
           () => ShopIdNotifier(initialShopId: activeShopId),
+        ),
+        shopNameProvider.overrideWith(
+          () => ShopNameNotifier(initialShopName: savedShopName),
         ),
       ],
       child: MyApp(

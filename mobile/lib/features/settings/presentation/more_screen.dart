@@ -26,6 +26,39 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
     await controller.synchronize();
   }
 
+  Future<void> _onLogout() async {
+    final l10n = AppLocalizations.of(context)!;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10n.logoutConfirmTitle),
+        content: Text(l10n.logoutConfirmMessage),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(l10n.cancel),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(l10n.logout),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    await ref.read(appSyncControllerProvider).logout();
+    await clearActiveSession(ref);
+    if (mounted) {
+      context.go('/signin');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -63,7 +96,12 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(shopName, style: AppTypography.h3),
+                          Text(
+                            shopName.isNotEmpty
+                                ? shopName
+                                : l10n.defaultShopName,
+                            style: AppTypography.h3,
+                          ),
                           const SizedBox(height: 2),
                           Text(
                             '${l10n.deviceIdLabel}: ${deviceId.substring(0, deviceId.length > 18 ? 18 : deviceId.length)}',
@@ -288,6 +326,18 @@ class _MoreScreenState extends ConsumerState<MoreScreen> {
                     ),
                   ],
                 ),
+              ),
+              const SizedBox(height: 24),
+
+              // Logout Button
+              AstawashSecondaryButton(
+                label: l10n.logout,
+                icon: const Icon(
+                  Icons.logout_rounded,
+                  size: 20,
+                  color: AppColors.error,
+                ),
+                onPressed: _onLogout,
               ),
               const SizedBox(height: 32),
             ],

@@ -919,6 +919,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Sent {customers} customers and {entries} ledger entries.'**
   String syncResult(int customers, int entries);
+
+  /// No description provided for @logout.
+  ///
+  /// In en, this message translates to:
+  /// **'Log Out'**
+  String get logout;
+
+  /// No description provided for @logoutConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Log Out?'**
+  String get logoutConfirmTitle;
+
+  /// No description provided for @logoutConfirmMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to log out? Your local records will remain safe on this device.'**
+  String get logoutConfirmMessage;
 }
 
 class _AppLocalizationsDelegate

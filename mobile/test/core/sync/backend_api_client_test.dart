@@ -166,6 +166,33 @@ void main() {
       expect(store.tokens, isNull);
     },
   );
+
+  test(
+    'logout clears tokens and resets shopId and authentication state',
+    () async {
+      final store = FakeTokenStore()
+        ..tokens = const SessionTokens(
+          accessToken: 'access-1',
+          refreshToken: 'refresh-1',
+          shopId: shopId,
+        )
+        ..shopName = 'Test Shop';
+      final api = await BackendApiClient.restore(
+        baseUrl: 'https://api.example.test',
+        tokenStore: store,
+      );
+
+      expect(api.isAuthenticated, isTrue);
+      expect(api.shopId, shopId);
+
+      await api.logout();
+
+      expect(api.isAuthenticated, isFalse);
+      expect(() => api.shopId, throwsStateError);
+      expect(store.tokens, isNull);
+      expect(store.shopName, isNull);
+    },
+  );
 }
 
 Dio _dio(RecordingAdapter adapter) =>
@@ -192,10 +219,12 @@ Map<String, Object?> _sessionJson(
 
 class FakeTokenStore implements TokenStore {
   SessionTokens? tokens;
+  String? shopName;
 
   @override
   Future<void> clear() async {
     tokens = null;
+    shopName = null;
   }
 
   @override
@@ -204,6 +233,14 @@ class FakeTokenStore implements TokenStore {
   @override
   Future<void> save(SessionTokens value) async {
     tokens = value;
+  }
+
+  @override
+  Future<String?> readShopName() async => shopName;
+
+  @override
+  Future<void> saveShopName(String name) async {
+    shopName = name;
   }
 }
 
