@@ -52,7 +52,7 @@ class HomeDashboardScreen extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          shopName,
+                          shopName.isNotEmpty ? shopName : l10n.defaultShopName,
                           style: AppTypography.h2.copyWith(
                             fontWeight: FontWeight.w700,
                           ),
@@ -211,7 +211,12 @@ class HomeDashboardScreen extends ConsumerWidget {
                               ),
                             )
                           : Text(
-                              formatSantimAsBirr(totalSantim, symbol: 'ETB', symbolAtStart: true, useGrouping: true),
+                              formatSantimAsBirr(
+                                totalSantim,
+                                symbol: 'ETB',
+                                symbolAtStart: true,
+                                useGrouping: true,
+                              ),
                               style: AppTypography.amountHero,
                             ),
                       const SizedBox(height: 8),
@@ -353,7 +358,9 @@ class HomeDashboardScreen extends ConsumerWidget {
                         ).format(entry.occurredAt.toLocal());
                         final formattedAmount = formatSantimAsBirr(
                           entry.amountSantim,
-                          symbol: 'ETB', symbolAtStart: true, useGrouping: true,
+                          symbol: 'ETB',
+                          symbolAtStart: true,
+                          useGrouping: true,
                         );
 
                         return Container(

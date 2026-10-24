@@ -120,19 +120,59 @@ void main() {
       expect(customer.syncedAt, isNull);
     },
   );
+
+  test('logout clears tokens and resets controller auth state', () async {
+    final database = AppDatabase(NativeDatabase.memory());
+    final tokenStore = _MemoryTokenStore()
+      ..tokens = const SessionTokens(
+        accessToken: 'access',
+        refreshToken: 'refresh',
+        shopId: shopId,
+      )
+      ..shopName = 'Registered Shop';
+    final apiClient = await BackendApiClient.restore(
+      baseUrl: 'https://api.example.test',
+      tokenStore: tokenStore,
+    );
+    final controller = AppSyncController(
+      database: database,
+      apiClient: apiClient,
+    );
+
+    expect(controller.isAuthenticated, isTrue);
+
+    await controller.logout();
+
+    expect(controller.isAuthenticated, isFalse);
+    expect(controller.status, AppSyncStatus.idle);
+    expect(await tokenStore.read(), isNull);
+    expect(await tokenStore.readShopName(), isNull);
+
+    await database.close();
+  });
 }
 
 class _MemoryTokenStore implements TokenStore {
   SessionTokens? tokens;
+  String? shopName;
 
   @override
-  Future<void> clear() async => tokens = null;
+  Future<void> clear() async {
+    tokens = null;
+    shopName = null;
+  }
 
   @override
   Future<SessionTokens?> read() async => tokens;
 
   @override
   Future<void> save(SessionTokens value) async => tokens = value;
+
+  @override
+  Future<String?> readShopName() async => shopName;
+
+  @override
+  Future<void> saveShopName(String name) async => shopName = name;
 }
 
 class _Adapter implements HttpClientAdapter {

@@ -146,5 +146,8 @@
         "type": "int"
       }
     }
-  }
+  },
+  "logout": "ውጣ",
+  "logoutConfirmTitle": "መውጣት ይፈልጋሉ?",
+  "logoutConfirmMessage": "እርግጠኛ ነዎት መውጣት ይፈልጋሉ? የአካባቢ መዝገቦችዎ በዚህ መሣሪያ ላይ ተጠብቀው ይቆያሉ።"
 }
