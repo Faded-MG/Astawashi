@@ -50,10 +50,18 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       if (!mounted) return;
       if (controller.isAuthenticated) {
         await persistActiveShopId(ref, controller.shopId);
-        if (_isRegistering && _shopNameController.text.trim().isNotEmpty) {
-          ref
-              .read(shopNameProvider.notifier)
-              .setShopName(_shopNameController.text.trim());
+        final tokenStore = ref.read(backendApiClientProvider).tokenStore;
+        if (_isRegistering) {
+          final registeredName = _shopNameController.text.trim().isNotEmpty
+              ? _shopNameController.text.trim()
+              : '';
+          await tokenStore.saveShopName(registeredName);
+          ref.read(shopNameProvider.notifier).setShopName(registeredName);
+        } else {
+          final savedName = await tokenStore.readShopName();
+          if (savedName != null && savedName.isNotEmpty) {
+            ref.read(shopNameProvider.notifier).setShopName(savedName);
+          }
         }
         if (mounted) context.go('/dashboard');
       }
@@ -229,27 +237,6 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                     style: TextStyle(color: AppColors.error),
                   ),
                 ],
-                const SizedBox(height: 24),
-                Center(
-                  child: TextButton(
-                    onPressed: () => context.go('/dashboard'),
-                    child: Text(
-                      l10n.continueOffline,
-                      style: AppTypography.bodyMedium.copyWith(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  l10n.offlineShopNotice,
-                  style: AppTypography.caption.copyWith(
-                    color: AppColors.textMuted,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
               ],
             ),
           ),

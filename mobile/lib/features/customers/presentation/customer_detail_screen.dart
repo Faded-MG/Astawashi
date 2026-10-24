@@ -117,7 +117,12 @@ class CustomerDetailScreen extends ConsumerWidget {
         ?.where((c) => c.id == customerId)
         .firstOrNull;
     final balanceSantim = balanceAsync.value ?? 0;
-    final formattedBalance = formatSantimAsBirr(balanceSantim, symbol: 'ETB', symbolAtStart: true, useGrouping: true);
+    final formattedBalance = formatSantimAsBirr(
+      balanceSantim,
+      symbol: 'ETB',
+      symbolAtStart: true,
+      useGrouping: true,
+    );
 
     if (customer == null && !customersAsync.isLoading) {
       return Scaffold(
@@ -362,7 +367,9 @@ class CustomerDetailScreen extends ConsumerWidget {
                       ).format(entry.occurredAt.toLocal());
                       final formattedAmount = formatSantimAsBirr(
                         entry.amountSantim,
-                        symbol: 'ETB', symbolAtStart: true, useGrouping: true,
+                        symbol: 'ETB',
+                        symbolAtStart: true,
+                        useGrouping: true,
                       );
 
                       return Container(

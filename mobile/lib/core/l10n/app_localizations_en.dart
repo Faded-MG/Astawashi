@@ -457,4 +457,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String syncResult(int customers, int entries) {
     return 'Sent $customers customers and $entries ledger entries.';
   }
+
+  @override
+  String get logout => 'Log Out';
+
+  @override
+  String get logoutConfirmTitle => 'Log Out?';
+
+  @override
+  String get logoutConfirmMessage =>
+      'Are you sure you want to log out? Your local records will remain safe on this device.';
 }

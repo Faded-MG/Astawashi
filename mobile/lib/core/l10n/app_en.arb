@@ -200,5 +200,8 @@
         "type": "int"
       }
     }
-  }
+  },
+  "logout": "Log Out",
+  "logoutConfirmTitle": "Log Out?",
+  "logoutConfirmMessage": "Are you sure you want to log out? Your local records will remain safe on this device."
 }
