@@ -26,11 +26,18 @@ class BackendApiClient implements SyncApi {
   final TokenStore _tokenStore;
   String? _shopId;
 
+  TokenStore get tokenStore => _tokenStore;
+
   bool get isAuthenticated => _shopId != null;
 
   @override
   String get shopId =>
       _shopId ?? (throw StateError('Authenticate before synchronizing.'));
+
+  Future<void> logout() async {
+    await _tokenStore.clear();
+    _shopId = null;
+  }
 
   static Future<BackendApiClient> restore({
     required String baseUrl,

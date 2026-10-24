@@ -263,13 +263,23 @@ String _testPhone() {
 
 class _MemoryTokenStore implements TokenStore {
   SessionTokens? _tokens;
+  String? _shopName;
 
   @override
-  Future<void> clear() async => _tokens = null;
+  Future<void> clear() async {
+    _tokens = null;
+    _shopName = null;
+  }
 
   @override
   Future<SessionTokens?> read() async => _tokens;
 
   @override
   Future<void> save(SessionTokens tokens) async => _tokens = tokens;
+
+  @override
+  Future<String?> readShopName() async => _shopName;
+
+  @override
+  Future<void> saveShopName(String name) async => _shopName = name;
 }

@@ -184,7 +184,9 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
                       ).format(entry.occurredAt.toLocal());
                       final formattedAmount = formatSantimAsBirr(
                         entry.amountSantim,
-                        symbol: 'ETB', symbolAtStart: true, useGrouping: true,
+                        symbol: 'ETB',
+                        symbolAtStart: true,
+                        useGrouping: true,
                       );
 
                       return Container(

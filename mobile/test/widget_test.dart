@@ -64,20 +64,13 @@ void main() {
         overrides: [
           databaseProvider.overrideWithValue(database),
           backendApiClientProvider.overrideWithValue(apiClient),
-          shopIdProvider.overrideWith(
-            () => ShopIdNotifier(initialShopId: offlineOnlyShopId),
-          ),
+          shopIdProvider.overrideWith(() => ShopIdNotifier(initialShopId: '')),
         ],
         child: MyApp(router: router),
       ),
     );
     await tester.pump();
-    expect(
-      find.text(
-        'Without signing in, records stay in a separate local-only shop and will not sync after you sign in.',
-      ),
-      findsOneWidget,
-    );
+    expect(find.text('Welcome Back'), findsOneWidget);
 
     await tester.enterText(find.byType(TextFormField).at(0), '0911223344');
     await tester.enterText(find.byType(TextFormField).at(1), '1234');
@@ -188,19 +181,83 @@ void main() {
 
     await tester.pumpWidget(const SizedBox.shrink());
   });
+
+  testWidgets('logout clears session and redirects to /signin', (
+    WidgetTester tester,
+  ) async {
+    final database = AppDatabase(NativeDatabase.memory());
+    final tokenStore = _MemoryTokenStore()
+      ..tokens = const SessionTokens(
+        accessToken: 'access',
+        refreshToken: 'refresh',
+        shopId: shopId,
+      )
+      ..shopName = 'Registered Kiosk';
+    final apiClient = await BackendApiClient.restore(
+      baseUrl: 'https://api.example.test',
+      tokenStore: tokenStore,
+    );
+    final router = createAppRouter(initialLocation: '/more');
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(database),
+          backendApiClientProvider.overrideWithValue(apiClient),
+          shopIdProvider.overrideWith(
+            () => ShopIdNotifier(initialShopId: shopId),
+          ),
+          shopNameProvider.overrideWith(
+            () => ShopNameNotifier(initialShopName: 'Registered Kiosk'),
+          ),
+        ],
+        child: MyApp(router: router),
+      ),
+    );
+    await tester.pump();
+    expect(find.text('Registered Kiosk'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('Log Out'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Log Out'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Log Out?'), findsOneWidget);
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Log Out'));
+    await tester.pumpAndSettle();
+
+    expect(tokenStore.tokens, isNull);
+    expect(tokenStore.shopName, isNull);
+    expect(router.routeInformationProvider.value.uri.path, '/signin');
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    router.dispose();
+    await tester.pump(const Duration(seconds: 1));
+    await database.close();
+  });
 }
 
 class _MemoryTokenStore implements TokenStore {
   SessionTokens? tokens;
+  String? shopName;
 
   @override
-  Future<void> clear() async => tokens = null;
+  Future<void> clear() async {
+    tokens = null;
+    shopName = null;
+  }
 
   @override
   Future<SessionTokens?> read() async => tokens;
 
   @override
   Future<void> save(SessionTokens value) async => tokens = value;
+
+  @override
+  Future<String?> readShopName() async => shopName;
+
+  @override
+  Future<void> saveShopName(String name) async => shopName = name;
 }
 
 class _Adapter implements HttpClientAdapter {
