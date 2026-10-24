@@ -453,4 +453,14 @@ class AppLocalizationsAm extends AppLocalizations {
   String syncResult(int customers, int entries) {
     return '$customers ደንበኞች እና $entries የደብተር መዝገቦች ተልከዋል።';
   }
+
+  @override
+  String get logout => 'ውጣ';
+
+  @override
+  String get logoutConfirmTitle => 'መውጣት ይፈልጋሉ?';
+
+  @override
+  String get logoutConfirmMessage =>
+      'እርግጠኛ ነዎት መውጣት ይፈልጋሉ? የአካባቢ መዝገቦችዎ በዚህ መሣሪያ ላይ ተጠብቀው ይቆያሉ።';
 }
