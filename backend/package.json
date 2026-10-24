@@ -7,7 +7,8 @@
     "test": "vitest run",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
-    "migrate": "node-pg-migrate up --migrations-dir src/db/migrations --database-url ${DATABASE_URL:-postgresql://astawash:astawash@localhost:5432/astawash}"
+    "migrate": "node scripts/migrate.js",
+    "migrate:local": "node scripts/migrate.js --local"
   },
   "keywords": [],
   "author": "",
