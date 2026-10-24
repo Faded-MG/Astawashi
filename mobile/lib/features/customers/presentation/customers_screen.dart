@@ -211,7 +211,12 @@ class _CustomerListTile extends ConsumerWidget {
     }
 
     final hasBalance = balanceSantim > 0;
-    final formattedBalance = formatSantimAsBirr(balanceSantim, symbol: 'ETB', symbolAtStart: true, useGrouping: true);
+    final formattedBalance = formatSantimAsBirr(
+      balanceSantim,
+      symbol: 'ETB',
+      symbolAtStart: true,
+      useGrouping: true,
+    );
 
     return InkWell(
       onTap: () => context.push('/customers/${customer.id}'),

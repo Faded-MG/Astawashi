@@ -84,7 +84,14 @@ class _RecordRepaymentScreenState extends ConsumerState<RecordRepaymentScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            l10n.amountExceedsBalance(formatSantimAsBirr(currentBalanceSantim, symbol: 'ETB', symbolAtStart: true, useGrouping: true)),
+            l10n.amountExceedsBalance(
+              formatSantimAsBirr(
+                currentBalanceSantim,
+                symbol: 'ETB',
+                symbolAtStart: true,
+                useGrouping: true,
+              ),
+            ),
           ),
           backgroundColor: AppColors.error,
         ),
@@ -145,7 +152,12 @@ class _RecordRepaymentScreenState extends ConsumerState<RecordRepaymentScreen> {
         ? ref.watch(customerBalanceProvider(_selectedCustomerId!))
         : null;
     final balanceSantim = balanceAsync?.value ?? 0;
-    final formattedBalance = formatSantimAsBirr(balanceSantim, symbol: 'ETB', symbolAtStart: true, useGrouping: true);
+    final formattedBalance = formatSantimAsBirr(
+      balanceSantim,
+      symbol: 'ETB',
+      symbolAtStart: true,
+      useGrouping: true,
+    );
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -287,7 +299,12 @@ class _RecordRepaymentScreenState extends ConsumerState<RecordRepaymentScreen> {
                     }
                     if (_selectedCustomerId != null && santim > balanceSantim) {
                       return l10n.amountExceedsBalance(
-                        formatSantimAsBirr(balanceSantim, symbol: 'ETB', symbolAtStart: true, useGrouping: true),
+                        formatSantimAsBirr(
+                          balanceSantim,
+                          symbol: 'ETB',
+                          symbolAtStart: true,
+                          useGrouping: true,
+                        ),
                       );
                     }
                     return null;

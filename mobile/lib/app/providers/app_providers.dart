@@ -37,7 +37,7 @@ final appSyncControllerProvider = Provider<AppSyncController>((ref) {
 });
 
 class ShopIdNotifier extends Notifier<String> {
-  ShopIdNotifier({this.initialShopId = offlineOnlyShopId});
+  ShopIdNotifier({this.initialShopId = ''});
 
   final String initialShopId;
 
@@ -52,8 +52,12 @@ final shopIdProvider = NotifierProvider<ShopIdNotifier, String>(
 );
 
 class ShopNameNotifier extends Notifier<String> {
+  ShopNameNotifier({this.initialShopName = ''});
+
+  final String initialShopName;
+
   @override
-  String build() => "Abebe's Kiosk";
+  String build() => initialShopName;
 
   void setShopName(String name) => state = name;
 }
@@ -88,6 +92,17 @@ Future<void> persistActiveShopId(WidgetRef ref, String shopId) async {
         SyncStateCompanion(id: const Value(1), activeShopId: Value(shopId)),
       );
   ref.read(shopIdProvider.notifier).setShopId(shopId);
+}
+
+Future<void> clearActiveSession(WidgetRef ref) async {
+  final database = ref.read(databaseProvider);
+  await database
+      .into(database.syncState)
+      .insertOnConflictUpdate(
+        const SyncStateCompanion(id: Value(1), activeShopId: Value(null)),
+      );
+  ref.read(shopIdProvider.notifier).setShopId('');
+  ref.read(shopNameProvider.notifier).setShopName('');
 }
 
 class LocaleNotifier extends Notifier<Locale> {
