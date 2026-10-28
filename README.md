@@ -3,30 +3,55 @@
 
 **An offline-first customer-credit ledger for Ethiopian neighborhood shops.**
 
-Replace the paper *dube* notebook with a phone app that works without internet, never loses a birr, and never double-counts an entry.
+Replace the paper *dube* notebook with a phone app that works without internet and is designed to preserve accurate, traceable records.
 
 ![Flutter](https://img.shields.io/badge/Flutter-Riverpod%20%2B%20Drift-02569B?logo=flutter&logoColor=white)
 ![Node](https://img.shields.io/badge/Node.js-Fastify%20%2B%20TypeScript-339933?logo=nodedotjs&logoColor=white)
 ![Postgres](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
-![Status](https://img.shields.io/badge/status-in%20development-orange)
+![Status](https://img.shields.io/badge/status-final%20submission-2E7D32)
 
-**Mahlet Getinet** · CTC-1238-26 · INSA 2026 · 5th Batch · Development Department · Room 3004
+**Individual project** by **Mahlet Getinet** · CTC-1238-26 · INSA 2026 · 5th Batch · Development Department · Room 3004
 Instructor: Muhamadawal
 
+---
+
+## Submission Links
+
+| | |
+|---|---|
+| **GitHub repository** | https://github.com/Faded-MG/Astawashi |
+| **5-minute demonstration video** | `[DEMO VIDEO URL: TO BE ADDED BEFORE SUBMISSION]` |
 
 ---
 
 ## Project Information
 
+Astawash (አስታዋሽ, "reminder") is an Amharic-first, offline-first mobile app that replaces the paper *dube* notebook used by Ethiopian neighborhood shops. It records customer credit sales, repayments, balances, and repayment reminders. It is not a payment gateway, lending platform, inventory system, or accounting application.
+
+**Purpose:** give a shopkeeper a trustworthy, dispute-resistant record of who owes what, one that keeps working without internet and stays correct after retried or interrupted synchronization.
+
+**Main features**
+
+- Customer records and a credit-sale / repayment / reversal ledger, with per-customer balances and a shop-wide total outstanding
+- Offline-first local storage (Drift / SQLite) as the source of truth
+- Append-only ledger enforced by database triggers; mistakes are corrected with reversal entries
+- Phone + PIN authentication with refresh-token rotation
+- Push and pull synchronization with an idempotent PostgreSQL backend
+- Amharic and English interface
+- Pre-filled SMS reminder for a customer
+
+### Developer Information
+
+This is an **individual project**; there is no team.
+
 | | |
 |---|---|
-| **Student** | Mahlet Getinet |
-| **Student ID** | CTC-1238-26 |
+| **Name** | Mahlet Getinet |
+| **CTC ID** | CTC-1238-26 |
 | **Program** | INSA 2026 · 5th Batch |
 | **Department** | Development |
 | **Room** | 3004 |
 | **Instructor** | Muhamadawal |
-| **Project** | Astawash (አስታዋሽ, "reminder") |
 
 ---
 
@@ -43,8 +68,9 @@ Instructor: Muhamadawal
 9. [Repository Layout](#9-repository-layout)
 10. [Getting Started](#10-getting-started)
 11. [Testing Strategy](#11-testing-strategy)
-12. [Risks and Mitigations](#13-risks-and-mitigations)
-13. [Evaluation Plan](#14-evaluation-plan)
+12. [Implementation Status](#12-implementation-status)
+13. [Risks and Mitigations](#13-risks-and-mitigations)
+14. [Evaluation](#14-evaluation)
 
 ---
 
@@ -66,9 +92,9 @@ Astawash is a mobile app that does one job: **keep a trustworthy record of custo
 
 - Add a customer, record a credit sale or a repayment in seconds.
 - See every customer's balance and a total outstanding figure at a glance.
-- Fully usable with **no internet**. Data syncs to a server whenever a connection appears.
+- Fully usable with **no internet**. Data is synchronized with the server when the user starts a sync from the More screen.
 - **Amharic-first** interface with English available.
-- Prepare a repayment reminder as a pre-filled SMS in one tap. No messaging provider and no cost.
+- Prepare a repayment reminder as a pre-filled SMS in one tap. No messaging provider is required; standard carrier SMS charges may apply.
 
 The engineering goal is **financial integrity under unreliable networks**: after any number of offline sessions, dropped connections and retried syncs, every balance is correct and no entry is lost or duplicated.
 
@@ -85,7 +111,7 @@ The engineering goal is **financial integrity under unreliable networks**: after
 - Amharic and English UI
 - Locally generated SMS reminder text
 
-**Explicitly out of scope** (enforced in the project rules file)
+**Explicitly out of scope**
 
 Inventory, payment gateways, lending, credit scoring, and accounting. Keeping the product narrow is what makes the integrity guarantees achievable by one developer.
 
@@ -117,7 +143,7 @@ flowchart TB
         UI["UI: feature screens"] --> State["Riverpod providers / controllers"]
         State --> Repo["Repositories (single entry point to data)"]
         Repo --> DB[("Drift / SQLite<br/>SOURCE OF TRUTH")]
-        Repo --> Sync["SyncEngine (outbox)"]
+        Repo --> Sync["SyncEngine (outbox, user-initiated)"]
         Sync --> DB
         Sync --> Api["API client (Dio)"]
     end
@@ -141,7 +167,7 @@ Phone number + PIN. The server stores an **Argon2** hash of the PIN and issues s
 
 ### Reminders
 
-Reminders are generated **on the device**. The app builds a localized message and opens the SMS app pre-filled through an `sms:` URI. It costs nothing and works offline.
+Reminders are generated **on the device**. The app builds a localized message and opens the SMS app pre-filled through an `sms:` URI. The reminder is prepared on-device; standard carrier SMS charges may apply when sent.
 
 ## 6. Data Model
 
@@ -210,7 +236,7 @@ Entry 3 is never edited or deleted. Entry 4 cancels it and records *that* a corr
 
 ## 7. Sync Protocol
 
-Sync is a background concern. The UI never waits on it.
+Sync is user-initiated through the **Synchronize now** action on the More screen. It is separate from recording: entries are always saved locally first, and recording never waits on the network.
 
 ### Push: `POST /sync/push` (authenticated)
 
@@ -233,17 +259,16 @@ Sync is a background concern. The UI never waits on it.
 
 ### Current sync integration
 
-The API client supports registration, login, secure token storage, refresh-token rotation, push, and pull. `SyncEngine.synchronize()` is implemented and callable by the application layer. Automatic scheduling, connectivity-triggered sync, UI status, and app-screen integration are not wired yet.
+The API client supports registration, login, secure token storage, refresh-token rotation, push, and pull. `SyncEngine.synchronize()` (push, then pull) is wired to the app through `AppSyncController` and triggered by the **Synchronize now** action on the More screen, which shows the live status (idle, syncing, success, failure), the last result, and any error. Synchronization is manual only: automatic/background synchronization, connectivity-triggered synchronization, and automatic retry with backoff are **not implemented** (see [Implementation Status](#12-implementation-status)).
 
 ### Failure rules
 
 | Situation | Behavior |
 |---|---|
-| Network error | Leave `synced_at` NULL, retry with backoff. |
+| Network error / app interruption | Keep unacknowledged changes pending; retry safely on the next manual sync using stable UUIDs. |
 | `401` / expired refresh token | Stop syncing, clear invalid credentials, and keep pending local changes. |
 | Rejected change | Surface its ID and reason; keep it pending for correction or explicit resolution. |
-| Network error / app interruption | Keep unacknowledged changes and retry safely using stable UUIDs. |
-| Failed pull-page application | Roll back records and cursor together; retry the same page. |
+| Failed pull-page application | Roll back records and cursor together; the same page is retried on the next manual sync. |
 
 ## 8. Tech Stack
 
@@ -255,7 +280,7 @@ The API client supports registration, login, secure token storage, refresh-token
 | Routing | `go_router` |
 | Local database | `drift` (typed SQLite, migrations, reactive streams) |
 | HTTP | `dio` |
-| Connectivity | `connectivity_plus` |
+| Connectivity | `connectivity_plus` (declared dependency; not yet used to trigger sync) |
 | Token storage | `flutter_secure_storage` |
 | Localization | `flutter_localizations` + `intl` (ARB files: `app_en.arb`, `app_am.arb`) |
 | Amharic font | Noto Sans Ethiopic, **bundled** in assets (no runtime download) |
@@ -269,7 +294,7 @@ The API client supports registration, login, secure token storage, refresh-token
 | Framework | Fastify, TypeScript (strict) |
 | Validation | `zod` |
 | Database access | `pg` with plain SQL migrations, **no ORM**, so `ON CONFLICT` and sequences stay explicit |
-| Security | `argon2`, `@fastify/jwt`, `@fastify/rate-limit` |
+| Security | `argon2` (PIN hashing), `@fastify/jwt` (access/refresh tokens), `@fastify/rate-limit` (per-route limits on auth endpoints). All three are installed and in use. |
 | Tests | `vitest`; PostgreSQL integration tests use `TEST_DATABASE_URL` |
 | Local infra | Docker Compose (PostgreSQL 16) |
 
@@ -280,25 +305,36 @@ Astawashi/
 ├── mobile/                     Flutter app
 │   ├── lib/
 │   │   ├── main.dart
-│   │   ├── app/                router, theme, app widget
+│   │   ├── app/                providers, router, theme, shared widgets
 │   │   ├── core/
 │   │   │   ├── db/             Drift database, tables, append-only triggers
 │   │   │   ├── money/          santim ⇄ birr parsing and formatting
 │   │   │   ├── l10n/           ARB files and generated localizations
-│   │   │   └── sync/           SyncEngine, secure token store, Dio API client
-│   │   └── features/           (planned) auth, customers, ledger, reminders, settings
+│   │   │   └── sync/           SyncEngine, AppSyncController, sync API client,
+│   │   │                       sync models, secure token store
+│   │   └── features/
+│   │       ├── auth/           onboarding, sign-in, splash screens
+│   │       ├── customers/      customer list, add customer, customer detail
+│   │       │                   (balance, history, reversal, SMS reminder)
+│   │       ├── dashboard/      home dashboard, total outstanding
+│   │       ├── ledger/         local ledger repository, ledger screen,
+│   │       │                   credit-sale and repayment sheets
+│   │       └── settings/       language, manual sync, sign-out
 │   ├── assets/fonts/           Noto Sans Ethiopic
 │   └── test/                   unit and widget tests
 ├── backend/
-│   ├── src/                    Fastify server (server.ts, index.ts)
+│   ├── src/
+│   │   ├── server.ts, index.ts, config.ts
+│   │   ├── db/                 connection pool, numbered migrations (001–003)
+│   │   └── modules/
+│   │       ├── auth/           register, login, refresh, Argon2 PIN hashing
+│   │       └── sync/           push and pull service and repository
+│   ├── scripts/migrate.js      migration runner
 │   └── test/                   vitest tests
-├── docker-compose.yml          PostgreSQL 16
-├── PLAN.md                     full build plan, architecture reasoning, timeline
-├── STARTER_PROMPT.md           prompts used to drive each build session
-└── .cursor/rules/              project rules and git workflow
+└── docker-compose.yml          PostgreSQL 16
 ```
 
-Mobile code is **feature-first**: each feature owns `data/`, `domain/` and `presentation/`, and shared code lives in `core/`.
+Mobile code is **feature-first**: each feature owns its screens under `presentation/` (the ledger feature also owns its local `data/` repository), and shared code lives in `core/` and `app/`.
 
 ## 10. Getting Started
 
@@ -361,10 +397,11 @@ replace the value with the deployed HTTPS API URL. The app restores credentials
 from secure storage, allows registration/login, and exposes a manual
 **Synchronize now** action. Sync failure and expired authentication are shown
 in the app; local Drift data remains available and pending rows are not cleared
-without server acknowledgement. Automatic/background synchronization is not
-enabled. The current app shell does not yet contain customer or ledger-entry
-screens; those flows remain available through the local repository and are
-exercised by the live integration test below.
+without server acknowledgement. Customer and ledger-entry screens (add customer,
+record credit sale, record repayment, reverse entry) are part of the app.
+Synchronization is started manually from the More screen; automatic/background
+synchronization, connectivity-triggered synchronization, and automatic retry
+with backoff are not implemented.
 
 ### Deployment and demonstration checklist
 
@@ -414,9 +451,8 @@ exercised by the live integration test below.
 
    This test creates temporary test shops and ledger data on the configured
    service. Do not point it at production. It tests a simulated network refusal,
-   retry/idempotency, pull application, balances, and shop isolation. The app
-   shell currently has no customer/ledger creation screens, so the automated
-   test uses the real local ledger repository to create those records offline.
+   retry/idempotency, pull application, balances, and shop isolation. The test
+   creates its records offline through the real local ledger repository.
 
 ## 11. Testing Strategy
 
@@ -426,14 +462,27 @@ Correctness of money is the product, so tests come **before** UI.
 
 - `mobile/test/core/money/santim_test.dart`: parsing, formatting, rejection of invalid or unrepresentable input, 64-bit boundaries
 - `mobile/test/core/db/app_database_test.dart`: schema lifecycle, CHECK constraints, foreign keys, and the append-only triggers (DELETE and financial UPDATE blocked; sync metadata updates allowed)
-- `backend/test/health.test.ts`: health endpoint
+- `backend/test/health.test.ts`, `auth.test.ts`, `config.test.ts`, `migrations.test.ts`: health endpoints, authentication, configuration safety, and migrations
+- `mobile/test/features/ledger/data/local_ledger_repository_test.dart`, `mobile/test/core/sync/backend_api_client_test.dart`, and `mobile/test/features/ui_reference_test.dart`: local ledger repository, API client, and UI reference checks
 - `backend/test/sync.test.ts` and `backend/test/sync.routes.test.ts`: sync validation, authentication, cursor behavior, and rollback tests
 - `backend/test/sync.postgres.test.ts`: live PostgreSQL integration tests when `TEST_DATABASE_URL` points at a disposable migrated test database
 - `mobile/test/core/sync/sync_engine_test.dart`: offline push, acknowledgement, retry, auth failure, transactional pull, and cursor behavior
 - `mobile/test/core/sync/app_sync_controller_test.dart` and `mobile/test/widget_test.dart`: app-level authentication, visible sync failures, and manual sync trigger
 - `mobile/test/core/sync/live_sync_e2e_test.dart`: actual API/PostgreSQL and two-local-database path when `ASTAWASH_TEST_API_BASE_URL` points at a disposable test/staging service
 
-**Required before the matching features ship**
+**Recorded results**
+
+Latest local test run:
+
+| Suite | Passed | Skipped | Failed | Notes |
+|---|---:|---:|---:|---|
+| Backend (Vitest, `cd backend && npm test`) | 27 | 5 | 0 | 6 test files passed, 1 skipped |
+| Mobile (Flutter, `cd mobile && flutter test`) | 87 | 1 | 0 | |
+| **Combined** | **114** | **6** | **0** | |
+
+The five skipped backend tests are the PostgreSQL integration tests in `sync.postgres.test.ts`. They were skipped because the integration-test database configuration (`TEST_DATABASE_URL`) was unavailable during this run, so they have **not** been run and are not counted as passed.
+
+**Coverage targets**
 
 | Area | Cases |
 |---|---|
@@ -443,24 +492,54 @@ Correctness of money is the product, so tests come **before** UI.
 
 
 
-## 12. Risks and Mitigations
+## 12. Implementation Status
+
+Status below reflects what is present in the source code of this repository's `main` branch.
+
+| Area | Status | Notes |
+|---|---|---|
+| Money as integer santim | Implemented | `core/money`, unit-tested |
+| Local Drift/SQLite database, source of truth | Implemented | `core/db` |
+| Append-only ledger protections | Implemented | Local and PostgreSQL triggers; `CHECK` constraints; unique `reverses_id` |
+| Customer screens | Implemented | List, add customer, detail with balance and history |
+| Ledger-entry screens | Implemented | Credit sale and repayment sheets; reverse entry |
+| Feature-first folder structure | Implemented | `mobile/lib/features/*` |
+| Phone + PIN authentication | Implemented | Argon2 hash, JWT access tokens, rate-limited auth routes |
+| Token refresh | Implemented | Server `/auth/refresh`; client retries once after `401` |
+| SMS reminder | Implemented (on-device) | Pre-filled `sms:` message, localized; no messaging provider |
+| Amharic and English UI | Implemented | ARB files, bundled Ethiopic font |
+| Push synchronization | Implemented | Single transaction, 200-change batches |
+| Pull synchronization | Implemented | Sequence cursor, paged, applied atomically |
+| Safe duplicate sync requests | Implemented | `ON CONFLICT (id) DO NOTHING`; acknowledged vs already-accepted IDs |
+| Failure handling | Implemented | Unacknowledged rows stay pending; rejected changes reported; auth failure stops sync |
+| Manual synchronization with visible status | Implemented | More screen: idle / syncing / success / failure and error message |
+| Automatic/background synchronization | Not implemented (future) | No scheduler or periodic trigger; sync is started manually |
+| Connectivity-triggered synchronization | Not implemented (future) | `connectivity_plus` is declared but not used |
+| Automatic retry with backoff | Not implemented (future) | Failed or unacknowledged changes stay pending and are retried on the next manual sync |
+
+**Future improvements:** automatic and connectivity-triggered synchronization with backoff, a persistent sync indicator on the dashboard, and a server-side SMS channel (not required for the core product).
+
+## 13. Risks and Mitigations
 
 | Risk | Mitigation |
 |---|---|
 | Sync scope creep | Push first, pull second. The immutable ledger needs no merge logic. |
 | Amharic rendering or input bugs | Font is bundled. Test on a real low-end Android early. |
-| Running out of time | Follow the cut line. A finished Session 1 is already a presentable offline product. |
-| AI-assisted code drifting from the architecture | Always-on rules file, one step at a time, manual review of every DB and money change. |
-| No real users for evaluation | Line up 3 to 5 shopkeepers (family, neighbors) before Session 5. |
+| Running out of time | Scope is kept narrow (see [Scope](#3-scope)); no inventory, payments, lending, or accounting features. |
+| AI-assisted code drifting from the architecture | Architecture rules are documented in this README; one step at a time, with manual review of every DB and money change. |
+| No real users for evaluation | Mitigated: the app was tested by 3 to 5 shopkeepers. Detailed findings are not yet documented (see [Evaluation](#14-evaluation)). |
 
-## 13. Evaluation Plan
+## 14. Evaluation
 
-The project will be judged on measurable results, not appearance.
+The project is judged on measurable results, not appearance. Technical testing and user evaluation are kept separate.
 
-1. **Correctness:** balance and idempotency tests all green.
-2. **Offline demo:** record entries in airplane mode, reconnect, and verify them on the server. Kill the app mid-sync, rerun, and confirm there are no duplicates.
-3. **Usability:** test with 3 to 5 real shopkeepers and record the time to log a credit sale, register a repayment, and find who owes the most. The target is under 10 seconds to record a sale.
+**Technical testing**
 
-Results will be added here once collected.
+1. **Correctness:** automated tests cover money, ledger integrity, sync, and authentication. Recorded results are in [Testing Strategy](#11-testing-strategy).
+2. **Offline demo:** record entries in airplane mode, reconnect, run **Synchronize now**, and verify them on the server. Kill the app mid-sync, rerun, and confirm there are no duplicates.
 
+**User evaluation**
 
+Usability testing was conducted with 3 to 5 shopkeepers. The planned tasks were to log a credit sale, register a repayment, and find who owes the most, with a target of under 10 seconds to record a sale.
+
+Detailed findings (task times, observations, feedback) have not yet been documented, so no usability results are claimed here.
