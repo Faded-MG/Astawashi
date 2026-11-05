@@ -20,7 +20,7 @@ Instructor: Muhamadawal
 | | |
 |---|---|
 | **GitHub repository** | https://github.com/Faded-MG/Astawashi |
-| **5-minute demonstration video** | `[DEMO VIDEO URL: TO BE ADDED BEFORE SUBMISSION]` |
+| **5-minute demonstration video** | https://drive.google.com/file/d/1IA2sl4bcjKwlasqK3rsG2JsA6Mv3y5wK/view?usp=drive_link |
 
 ---
 
